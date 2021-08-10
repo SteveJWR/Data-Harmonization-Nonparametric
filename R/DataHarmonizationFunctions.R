@@ -4,6 +4,9 @@
 ## TODO: Create categories of functions
 # 
 
+##  Basic math functions
+# ---------------------------------------------
+
 logit <- function(x){
   if ({
     any(x < 0)
@@ -18,6 +21,63 @@ logit <- function(x){
 logistic <- function(x){
   return(1/(1 + exp(-x)))
 }
+
+
+##  Possible Kernel Functions 
+# ---------------------------------------------
+
+
+gaussian_kernel <- function(x){
+  return(exp(-x^2/2))
+}
+
+exponential_kernel <- function(x){
+  return(exp(-abs(x)))
+}
+
+logistic_kernel <- function(x){
+  return(1/(exp(x) + 2 + exp(-x)))
+}
+
+
+## Kernel support  |x| <= 1
+triangle_kernel <- function(x){
+  out <- (1 - abs(x))*(abs(x) <= 1)
+  return(out)
+}
+
+
+epanechnikov_kernel <- function(x){
+  out <- (3/4)*(1 - x^2)*(abs(x) <= 1)
+  return(out)
+}
+
+### Not Continuous which may cause problems 
+uniform_kernel <- function(x){
+  out <- 1*(abs(x) <= 1)
+  return(out)
+}
+
+quartic_kernel <- function(x){
+  out <- (15/16)*(1 - x^2)^2*(abs(x) <= 1)
+  return(out)
+}
+
+triweight_kernel <- function(x){
+  out <- (35/32)*(1 - x^2)^3*(abs(x) <= 1)
+  return(out)
+}
+
+tricube_kernel <- function(x){
+  out <- (70/81)*(1 - abs(x)^3)^3*(abs(x) <= 1)
+  return(out)
+}
+
+cosine_kernel <- function(x){
+  out <- (pi/4)*(cos(pi*x/2))^3*(abs(x) <= 1)
+  return(out)
+}
+
 
 
 # TO DO: Create a dictionary for the conditional distributions 
@@ -80,57 +140,6 @@ tailProbBound <- function (x, k, n, verbose = FALSE){
     graphics::abline(v = sol.par, col = "red")
   }
   return(exp(sol.val))
-}
-
-gaussian_kernel <- function(x){
-  return(exp(-x^2/2))
-}
-
-exponential_kernel <- function(x){
-  return(exp(-abs(x)))
-}
-
-logistic_kernel <- function(x){
-  return(1/(exp(x) + 2 + exp(-x)))
-}
-
-
-## Kernel support  |x| <= 1
-triangle_kernel <- function(x){
-  out <- (1 - abs(x))*(abs(x) <= 1)
-  return(out)
-}
-
-
-epanechnikov_kernel <- function(x){
-  out <- (3/4)*(1 - x^2)*(abs(x) <= 1)
-  return(out)
-}
-
-### Not Continuous which may cause problems 
-uniform_kernel <- function(x){
-  out <- 1*(abs(x) <= 1)
-  return(out)
-}
-
-quartic_kernel <- function(x){
-  out <- (15/16)*(1 - x^2)^2*(abs(x) <= 1)
-  return(out)
-}
-
-triweight_kernel <- function(x){
-  out <- (35/32)*(1 - x^2)^3*(abs(x) <= 1)
-  return(out)
-}
-
-tricube_kernel <- function(x){
-  out <- (70/81)*(1 - abs(x)^3)^3*(abs(x) <= 1)
-  return(out)
-}
-
-cosine_kernel <- function(x){
-  out <- (pi/4)*(cos(pi*x/2))^3*(abs(x) <= 1)
-  return(out)
 }
 
 

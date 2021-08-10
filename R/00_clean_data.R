@@ -108,11 +108,51 @@ tests.y1.train <- categorize(tests.y1)
 tests.z1.train <- categorize(tests.z1)
 
 
-write.csv(tests.y2.val,"data/NACCMMSE_validation.csv", row.names = F)
-write.csv(tests.z2.val,"data/MOCATOTS_validation.csv", row.names = F)
+write.csv(tests.y2.val,"Data/NACCMMSE_validation.csv", row.names = F)
+write.csv(tests.z2.val,"Data/MOCATOTS_validation.csv", row.names = F)
 
-write.csv(tests.y1,"data/NACCMMSE_training.csv", row.names = F)
-write.csv(tests.z1,"data/MOCATOTS_training.csv", row.names = F)
+write.csv(tests.y1.train,"Data/NACCMMSE_training.csv", row.names = F)
+write.csv(tests.z1.train,"Data/MOCATOTS_training.csv", row.names = F)
+
+
+
+
+
+
+# Similarly Constructing the test data 
+
+# crosswalk Data set 
+cw.full <- read.csv(file = "Local_Data/crosswalk_wang08012018.csv")
+
+
+
+# indicates cognitively normal individuals 
+w_normal = cw.full$CDRGLOB==0
+
+# Between the age of 59 and 85
+w_age = (cw.full$NACCAGE>59) & (cw.full$NACCAGE <= 85)
+
+cw.clean <- cw.full[w_normal & w_age,]
+
+score1 <- "NACCMMSE"
+score2 <- "MOCATOTS"
+
+# Maxima of possible tests scores
+Ny <- 30
+Nz <- 30
+
+### Filtering Missing codes so all are just listed as NA
+cw.clean = cw.clean %>% mutate(NACCMMSE = ifelse(((NACCMMSE >=0)&(NACCMMSE <= Ny)),NACCMMSE, NA))
+cw.clean = cw.clean %>% mutate(C1WMOCATOTS = ifelse(((C1WMOCATOTS >=0)&(C1WMOCATOTS <= Nz)),C1WMOCATOTS, NA))
+cw.clean <- cw.clean[!is.na(cw.clean$NACCMMSE) &!is.na(cw.clean$C1WMOCATOTS) ,]
+
+cw.columns <- c("NACCMMSE", "C1WMOCATOTS", "NACCAGE", "SEX", "EDUC")
+cw.clean <- cw.clean[,cw.columns]
+colnames(cw.clean) <- c("y","z","age","sex","educ")
+cw.clean <- categorize(cw.clean)
+
+write.csv(cw.clean,"Data/NACCMMSE_to_MOCATOTS_test.csv", row.names = F)
+
 
 
 
