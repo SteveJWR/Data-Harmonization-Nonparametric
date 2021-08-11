@@ -106,8 +106,6 @@ results.list <- sapply(1:n.sims, function(i){
   }
   
   
-  
-  
 })
 
 for(i in 1:n.sims){

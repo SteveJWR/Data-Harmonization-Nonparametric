@@ -166,56 +166,44 @@ measurement_kernel_sample <- function(size, lat, N, ker, h){
 }
 
 
-# TODO: rename all sample_latent_conditional
+# TODO: rename all conditional.samp to sample_latent_conditional
 
 ##### TO DO: EDIT THIS FUNCTION
-# Function: sample 
-# Input: pair.obs, an observed data set of pairs of distributions for which
-#                  the latent variable is constant;  must be an vector of integers  
-#        latent.mix.list, list of latent mixtures ; input is a list of weights assigned to a uniformly binned latent  
-#        model.observed.list,  list of corresponding distributions on the observed data
-# Output: latent: weights in each bin in the latent distribution
+# Function: Numerically approximate the distribution of second scores, given the first
+# Input: y.obs, the observed score;  must be an integer  
+#        latent.mixture, weights assigning to the discretized latent distribution; vector summing to 1
+#        cond, function defining the conditional distribution of Y|gamma; function [0,1] -> P{0, ..., N}
+# Output: probability : weights in each bin in the latent distribution
 #         observed: list of probabilities assigned to each test score value 
 
 
-sample_latent_conditional <- function(y.cond, n.samp,  p.hat, tau, latent.trait.quantiles, N, ker, h){
+second_score_conditional <- function(y.obs, latent.mixture, cond){
   
-  p.approx <- p.hat[y.cond + 1] # probability of conditional distribution 
+  tau <- inv_quantiles_from_weights(latent.mixture)
   
-  n_parallel <- round(2*n.samp/p.approx)
+  # corresponding quantiles to the latent mixture
+  latent.quantiles <- seq(0,1, length.out = length(tau))
   
-  n_tau <- length(tau) - 1
-  weights <- c()
-  for(i in 1:n_tau){
-    weights[i] <- tau[i + 1] - tau[i]
-  }
-  if(n_parallel >= 50000000){
-    n_parallel <- 50000000
-  }
-  # outcome 
-  out <- c()
-  while (length(out) < n.samp){
-    latent.idx <- sample(1:n_tau, size = n_parallel, replace = TRUE, prob = weights)
-    low_bounds <- latent.trait.quantiles[latent.idx]
-    high_bounds <- latent.trait.quantiles[latent.idx + 1]
-    latent.sample <- runif(n_parallel, min = low_bounds, max = high_bounds)
+  R_bins <- length(latent.mixture)
+  latent.points <- sapply(1:R_bins, function(z){
+    gam <- (latent.quantiles[z] + latent.quantiles[z+1])/2
+    return(gam)
+  })
+  
+  
+  joint.dist.grid  <- sapply(1:R_bins, function(gam.idx){
+    gam <- latent.points[gam.idx]
+    weight <- latent.mixture[gam.idx]
     
-    y.model.samp <- lapply(latent.sample, function(x){
-      i = 0:N
-      assumption.weights <- ker((i - N*x)/h)
-      out <- sample(0:N, size = 1, replace = TRUE, prob = assumption.weights)
-      return(out)
-    })
-    y.model.samp <- unlist(y.model.samp)
-    
-    keep.latent.idx <- (y.model.samp == y.cond)
-    
-    out <- c(out, latent.sample[keep.latent.idx])
-    #print(paste0(length(out), " of ", n.samp))
-  }
-  out <- out[1:n.samp]
-  return(out)
+    out.y1y2.joint <- cond(gam) %o% cond(gam)
+    prob.row <- out.y1y2.joint[,y.obs + 1]
+    out <- prob.row*weight
+    return(out)
+  })
   
+  cond.prob <- rowSums(joint.dist.grid)
+  cond.prob <- cond.prob/sum(cond.prob)
+  return(cond.prob)
 }
 
 # TODO: create a version which samples from binomial or the kernel method
@@ -524,8 +512,7 @@ tv_norm <- function(x,y){
 
 
 
-# TODO: simplify the input and output
-# TODO: design separate functions for showing the plot as well as the feasibility test
+# TODO: implement the feasibility test then delete
 
 numeric.latent.fit <- function(p.hat, A.matrix, mu, n.samples, show.plot = FALSE, feasibility.test = FALSE){
   require(CVXR)
@@ -812,7 +799,7 @@ cond.dist.est <- function(x.design, train.data, outcome, N, age.window = 3){
 # Input: latent.mixture, input is a list of weights assigned to a uniformly binned latent distribution
 # Output: tau: a set of quantiles corresponding to the edges of the bins of the latent distribution 
 
-quantiles_from_weights <- function(latent.mixture){
+inv_quantiles_from_weights <- function(latent.mixture){
   tau <- rep(NA, length(latent.mixture) + 1)
   tau[1] <- 0
   run.sum <- 0
@@ -826,13 +813,12 @@ quantiles_from_weights <- function(latent.mixture){
 }
 
 
-# TODO: rename, correct characters
-# TODO: unify with the binomial
+# TODO: delete after replacement
 
 intrinsic.variability.samp <- function(pair.obs, latent.mixture, n.samp, N, ker,h, p.hat){
   
   
-  tau <- quantiles_from_weights(latent.mixture)
+  tau <- inv_quantiles_from_weights(latent.mixture)
   latent.quantiles <- seq(0,1, length.out = length(tau))
   
   if(missing(p.hat)){
@@ -862,47 +848,29 @@ intrinsic.variability.samp <- function(pair.obs, latent.mixture, n.samp, N, ker,
 
 
 ##### TO DO: EDIT THIS FUNCTION
-# Function: sample 
+# Function: Sample from the model implied distribution on a subsequent score assuming the latent variable remains constant 
 # Input: pair.obs, an observed data set of pairs of distributions for which
 #                  the latent variable is constant;  must be an vector of integers  
-#        latent.mix.list, list of latent mixtures ; input is a list of weights assigned to a uniformly binned latent  
-#        model.observed.list,  list of corresponding distributions on the observed data
-# Output: latent: weights in each bin in the latent distribution
-#         observed: list of probabilities assigned to each test score value 
+#        latent.mixture, list of latent mixtures ; input is a list of weights assigned to a uniformly binned latent  
+#        
+# Output: a list of true.diff: The true difference between subsequent scores 
+#                    model.sample.diff: The difference between the model sampled second score and the true first score
 
-intrinsic_variability_sample <- function(pair.obs, latent.mixture, n.samp, N, ker,h, p.hat){
-  
-  
-  tau <- quantiles_from_weights(latent.mixture)
-  latent.quantiles <- seq(0,1, length.out = length(tau))
-  
-  if(missing(p.hat)){
-    p.hat <- rep(1,N + 1)
-    p.hat <- p.hat/sum(p.hat)
-  }
-  
-  latent.samp <- conditional.samp(y.cond = pair.obs[1], n.samp = n.samp,
-                                  p.hat = p.hat, tau = tau, latent.trait.quantiles = latent.quantiles,
-                                  N = N, ker = ker, h = h)
-  
-  
-  y.model.samp <- lapply(latent.samp, function(x){
-    i = 0:N
-    assumption.weights <- ker((i - N*x)/h)
-    out <- sample(0:N, size = 1, replace = TRUE, prob = assumption.weights)
-    return(out)
-  })
-  y.model.samp <- unlist(y.model.samp)
+
+intrinsic_variability_sample <- function(pair.obs, n.samp, latent.mixture, cond){
+  N <- length(cond(0.5)) - 1
+  # sampling from the model implied version of the subsequent conditional 
+  y.model.sample <- sample(0:N, size = n.samp, replace = T, prob = second_score_conditional(pair.obs[1], latent.mixture, cond))
   
   d.true <- pair.obs[2] - pair.obs[1]
-  d.sim <- y.model.samp - pair.obs[1]
+  d.sim <- y.model.sample - pair.obs[1]
   
-  out.list <- list("true.diff" = d.true, "sim.diff" = d.sim)
+  out.list <- list("true.diff" = d.true, "model.sample.diff" = d.sim)
   return(out.list)
 }
 
 
-# TODO: simplify to a single version 
+# TODO: simplify to a single version that can use any conditional 
 
 intrinsic.variability <- function(y.true.frame, latent.mix.list, model.observed.list, n.samp, N, ker, h, show.plot = FALSE, parallel = TRUE){
   d.true <- y.true.frame[,2] - y.true.frame[,1]
@@ -958,32 +926,16 @@ intrinsic.variability <- function(y.true.frame, latent.mix.list, model.observed.
 intrinsic_variability <- function(pair.obs, latent.mix.list, model.observed.list, n.samp, cond){
   # samples from the true q0 distribution 
   e.true <- pair.obs[,2] - pair.obs[,1]
-  e.sim <- c()
+  n <- nrow(pair.obs)
   
-  if(parallel){
-    idx <- 1:nrow(pair.obs)
-    e.sim.list <- lapply(idx, function(x){
-      latent.mix <- latent.mix.list[[x]]
-      train.p.hat <- model.observed.list[[x]]
-      intrinsic.samp <- intrinsic.variability.samp(pair.obs = as.numeric(pair.obs[x,]), latent.mixture = latent.mix,
-                                                   n.samp = n.samp, N = N, ker = ker, h = h, p.hat = train.p.hat)
-      
-      return(intrinsic.samp$sim.diff)
-    })
-    e.sim <- unlist(e.sim.list)
-  } else {
-    for(i in 1:nrow(pair.obs)){
-      latent.mix <- latent.mix.list[[i]]
-      train.p.hat <- model.observed.list[[i]]
-      intrinsic.samp <- intrinsic.variability.samp(pair.obs = as.numeric(pair.obs[i,]), latent.mixture = latent.mix,
-                                                   n.samp = n.samp, N = N, ker = ker, h = h, p.hat = train.p.hat)
-      
-      e.true <- c(e.true,intrinsic.samp$true.diff)
-      e.sim <- c(e.sim,intrinsic.samp$sim.diff)
-      cat(paste0("Latent Sample: ", i,"/",nrow(pair.obs)), end="\r")
-    }
-  }
-  
+  e.sim.list <- lapply(1:n, function(x){
+    latent.mix <- latent.mix.list[[x]]
+    intrinsic.samp <- intrinsic_variability_sample(pair.obs = as.numeric(pair.obs[x,]), 
+                                                   n.samp = n.samp, latent.mixture = latent.mix, 
+                                                   cond = cond)
+    return(intrinsic.samp$model.sample.diff)
+  })
+  e.sim <- unlist(e.sim.list)
   # intrinsic variability and the norm 
   int.norm <- tv_norm(e.true,e.sim)
   return(int.norm)
@@ -997,7 +949,7 @@ intrinsic_variability <- function(pair.obs, latent.mix.list, model.observed.list
 intrinsic.variability.binom.samp <- function(pair.obs, latent.mixture, n.samp, N, p.hat){
   
   
-  tau <- quantiles_from_weights(latent.mixture)
+  tau <- inv_quantiles_from_weights(latent.mixture)
   latent.quantiles <- seq(0,1, length.out = length(tau))
   
   if(missing(p.hat)){
@@ -1180,10 +1132,10 @@ conversion.numeric <- function(y, z, latent.mixture.y, latent.mixture.z,
     hz <- NA
   }
   
-  tau.y <- quantiles_from_weights(latent.mixture.y)
+  tau.y <- inv_quantiles_from_weights(latent.mixture.y)
   latent.quantiles.y <- seq(0,1, length.out = length(tau.y))
   
-  tau.z <- quantiles_from_weights(latent.mixture.z)
+  tau.z <- inv_quantiles_from_weights(latent.mixture.z)
   latent.quantiles.z <- seq(0,1, length.out = length(tau.z))
   
   R_bins <- length(latent.mixture.y)
@@ -1244,10 +1196,10 @@ conversion.numeric <- function(y, z, latent.mixture.y, latent.mixture.z,
 # TODO: verify if this is ever even necessary 
 
 conversion.samp <- function(y, z, latent.mixture.y, latent.mixture.z, n.samp, Ny, Nz, ker.y, ker.z, hy, hz, p.hat.y){
-  tau.y <- quantiles_from_weights(latent.mixture.y)
+  tau.y <- inv_quantiles_from_weights(latent.mixture.y)
   latent.quantiles.y <- seq(0,1, length.out = length(tau.y))
   
-  tau.z <- quantiles_from_weights(latent.mixture.z)
+  tau.z <- inv_quantiles_from_weights(latent.mixture.z)
   latent.quantiles.z <- seq(0,1, length.out = length(tau.z))
   
   
