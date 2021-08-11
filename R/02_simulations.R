@@ -81,7 +81,7 @@ results.list <- sapply(1:n.sims, function(i){
     A.matrix <- A.matrix.set[[j]][[k]]
     model.estimate <- estimate_mixing_numeric(p.hat = train.p.hat, A.matrix = A.matrix, mu = mu.tmp)
     
-    
+    cond <- 
     # lists of latent and model implied observed distributions for allowing 
     # different latent distributions for each point
     latent.mix.list <- list()
@@ -90,6 +90,8 @@ results.list <- sapply(1:n.sims, function(i){
       latent.mix.list[[m]] <- model.estimate$latent
       model.observed.list[[m]] <- model.estimate$observed
     }
+    res <- intrinsic_variability(pair.obs = sim.data, latent.mix.list = latent.mix.list, 
+                                 model.observed.list = model.observed.list, n.samp = 5, cond = cond)
     
     res <- intrinsic.variability(y.true.frame = sim.data, latent.mix.list = latent.mix.list, 
                                  model.observed.list = model.observed.list, n.samp = 5, N = N,
