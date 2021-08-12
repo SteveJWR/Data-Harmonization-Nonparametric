@@ -1,6 +1,7 @@
 
 
 
+library(parallel)
 
 source("R/DataHarmonizationFunctions.R")
 
@@ -36,7 +37,7 @@ for(j in 1:length(h.set)){
 }
 
 
-# Simulation 1 Intrinsic Variability 
+# Simulation 1 Intrinsic Variability setup 
 # ---------------------------
 
 
@@ -50,17 +51,90 @@ beta2.model1 <- 5
 cond.model1 <- conditional_mkm(N, ker = k.model1, h = h.model1)
 
 
-results.array <- array(NA, dim = c(n.sims, length(h.set), length(ker.set), length(mu.set)))
+results.array.intrinsic.1 <- array(NA, dim = c(n.sims, length(h.set), length(ker.set), length(mu.set)))
 # list of possible tuning parameters 
-hyper.param.idx <- expand.grid(1:length(h.set),1:length(ker.set), 1:length(mu.set))
+hyper.param.idx1 <- expand.grid(1:length(h.set),1:length(ker.set), 1:length(mu.set))
 
 # compact support kernels must have h >= 1
 idx1 <- hyper.param.idx[,1]  %in% which(h.set < 1)
 idx2 <- hyper.param.idx[,2]  %in% c(3,4)
 
 # Indexing guide for hyper parameter options compared to the sets used 
-hyper.param.idx <- hyper.param.idx[!(idx1 & idx2),]
+hyper.param.idx1 <- hyper.param.idx1[!(idx1 & idx2),]
 
+
+
+
+# Simulation 2 Intrinsic Variability setup 
+# ---------------------------
+
+
+### true model parameters (model 1)
+k.model2 <- exponential_kernel
+h.model2 <- 1
+
+beta1.model2 <- 6 
+beta2.model2 <- 6
+
+cond.model1 <- conditional_mkm(N, ker = k.model1, h = h.model1)
+
+
+results.array.intrinsic.1 <- array(NA, dim = c(n.sims, length(h.set), length(ker.set), length(mu.set)))
+# list of possible tuning parameters 
+hyper.param.idx1 <- expand.grid(1:length(h.set),1:length(ker.set), 1:length(mu.set))
+
+# compact support kernels must have h >= 1
+idx1 <- hyper.param.idx[,1]  %in% which(h.set < 1)
+idx2 <- hyper.param.idx[,2]  %in% c(3,4)
+
+# Indexing guide for hyper parameter options compared to the sets used 
+hyper.param.idx1 <- hyper.param.idx1[!(idx1 & idx2),]
+
+
+
+
+
+
+
+simulation_intrinsic_variability_model1 <- function(){
+  # loading the required functions 
+  source("R/DataHarmonizationFunctions.R")
+  
+  # setup of parameters of the simulation
+  sim.data <- simulate_beta(n.ind = dataset.size, n.obs.per.ind = 2, 
+                            beta1.y = beta1.model1, beta2.y = beta2.model1, 
+                            cond.y = cond.model1, pair.obs = F)
+  train.p.hat <- compute_edf(sim.data[,1], N)
+  
+  ## Computes the intrinsic variability across all possible models in our set 
+  intrinsic.variability.each.model <- sapply(1:nrow(hyper.param.idx), function(x){
+    j = hyper.param.idx[x,1]
+    k = hyper.param.idx[x,2]
+    l = hyper.param.idx[x,3]
+    h.tmp <- h.set[j]
+    ker.tmp <- ker.set[[k]]
+    mu.tmp <- mu.set[l]
+    A.matrix <- A.matrix.set[[j]][[k]]
+    model.estimate <- estimate_mixing_numeric(p.hat = train.p.hat, A.matrix = A.matrix, mu = mu.tmp)
+    
+    cond <- conditional_mkm(N,ker = ker.tmp, h = h.tmp)
+    # lists of latent and model implied observed distributions for allowing 
+    # different latent distributions for each point
+    latent.mix.list <- list()
+    model.observed.list <- list()
+    for (m in 1:dataset.size) {
+      latent.mix.list[[m]] <- model.estimate$latent
+      model.observed.list[[m]] <- model.estimate$observed
+    }
+    # intrinsic variability result. 
+    iv.res <- intrinsic_variability(pair.obs = sim.data, latent.mix.list = latent.mix.list, 
+                                    model.observed.list = model.observed.list, n.samp = 10, cond = cond)
+    
+    
+    results.array.intrinsic.1[i,j,k,l] <- iv.res
+    return(iv.res)
+  })
+}
 
 results.list <- sapply(1:n.sims, function(i){
   sim.data <- simulate_beta(n.ind = dataset.size, n.obs.per.ind = 2, 
@@ -81,7 +155,7 @@ results.list <- sapply(1:n.sims, function(i){
     A.matrix <- A.matrix.set[[j]][[k]]
     model.estimate <- estimate_mixing_numeric(p.hat = train.p.hat, A.matrix = A.matrix, mu = mu.tmp)
     
-    cond <- 
+    cond <- conditional_mkm(N,ker = ker.tmp, h = h.tmp)
     # lists of latent and model implied observed distributions for allowing 
     # different latent distributions for each point
     latent.mix.list <- list()
@@ -90,24 +164,16 @@ results.list <- sapply(1:n.sims, function(i){
       latent.mix.list[[m]] <- model.estimate$latent
       model.observed.list[[m]] <- model.estimate$observed
     }
-    res <- intrinsic_variability(pair.obs = sim.data, latent.mix.list = latent.mix.list, 
-                                 model.observed.list = model.observed.list, n.samp = 5, cond = cond)
+    # intrinsic variability result. 
+    iv.res <- intrinsic_variability(pair.obs = sim.data, latent.mix.list = latent.mix.list, 
+                                    model.observed.list = model.observed.list, n.samp = 10, cond = cond)
     
-    res <- intrinsic.variability(y.true.frame = sim.data, latent.mix.list = latent.mix.list, 
-                                 model.observed.list = model.observed.list, n.samp = 5, N = N,
-                                 ker = ker.tmp, h = h.tmp, parallel = T, show.plot = F)
     
-    return(res)
+    results.array[i,j,k,l] <- iv.res
+    return(iv.res)
   })
-  res.set <- unlist(res.list)
-  for(q in 1:nrow(hyper.param.idx)){
-    j = hyper.param.idx[q,1]
-    k = hyper.param.idx[q,2]
-    l = hyper.param.idx[q,3]
-    results.array[i,j,k,l] <- res.set[q]
-  }
   
-  
+  return("complete")
 })
 
 for(i in 1:n.sims){

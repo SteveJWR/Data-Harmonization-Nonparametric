@@ -484,6 +484,11 @@ kl.div <- function(p, q){
   return(out)
 }
 
+kl_divergence <- function(p,q){
+  out <- p*log(p/q)
+  out[is.nan(out)] <- 0
+  return(out)
+}
 
 # TODO: document
 tv_norm.dist <- function(p,q){

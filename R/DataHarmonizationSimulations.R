@@ -1136,8 +1136,6 @@ dev.off()
 
 
 
-
-
 ######### Variation as a Function of mu within the proper model 
 set.seed(1)
 ker.correct.model <- ker.model
