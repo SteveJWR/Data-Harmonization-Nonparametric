@@ -1,8 +1,7 @@
 # Here we begin to clean the data 
 # We will convert the MMSE and the MOCA scores 
 
-source("R/DataHarmonizationFunctions.R")
-
+source("R/01_functions.R")
 
 
 

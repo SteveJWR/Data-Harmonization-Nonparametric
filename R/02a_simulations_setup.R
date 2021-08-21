@@ -1,5 +1,5 @@
 
-source("R/DataHarmonizationFunctions.R")
+source("R/01_functions.R")
 
 # picking a set of grid tuning parameters for simulations. 
 h.set<- c(1,2) #c(0.25,0.5, 0.75,1.0,1.3,1.7,2.0,2.5,3.0,4.0,5.0,6.5, 8.0) 
@@ -109,8 +109,7 @@ hyper.param.idx2 <- hyper.param.idx2[!(idx1 & idx2),]
 
 simulation_intrinsic_variability_model1 <- function(sim.number){
   # loading the required functions 
-  source("R/DataHarmonizationFunctions.R")
-  source("R/02a_simulations_setup.R")
+  #source("R/02a_simulations_setup.R")
   # setup of parameters of the simulation
   
   sim.data <- simulate_beta(n.ind = dataset.size, n.obs.per.ind = 2, 
