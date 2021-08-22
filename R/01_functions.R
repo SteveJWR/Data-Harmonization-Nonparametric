@@ -405,60 +405,23 @@ nonpar.em.fit <- function(p.hat, tau, latent.trait.quantiles, N, ker, J, h, mu =
 
 
 
-# TODO: unify the computational methods for the A matrix 
-A.matrix.compute <- function(R_bins,  N, ker, h, numeric.eval = TRUE, numeric.points = 100, n.mc.samp = 100){
-  #R_bins <- 1000
-  #n.mc.samp <- 3000 # monte carlo samples for accuracy of A matrix computation 
+
+# Function: compute the A matrix for a binned latent approximation 
+# Input: R_bins, the number of uniform latent bins  must an integer  
+#        cond, function defining the conditional distribution of Y|gamma; function [0,1] -> {0, ..., N}
+#        numeric.points,  number of points used in the numeric approximation of A
+# Output: latent: weights in each bin in the latent distribution
+#         observed: list of probabilities assigned to each test score value 
+
+compute_A_matrix <- function(R_bins, cond, numeric.points = 100){
+  N <- length(cond(0.5)) - 1
   A_matrix <- matrix(data = NA, nrow = N + 1, ncol = R_bins)
-  if(numeric.eval){
-    for(i in 1:R_bins){
-      design.points <- seq((i - 1)/R_bins, (i)/R_bins, length.out = numeric.points)
-      A.row <- rep(0, N+1)
-      for(j in 1:numeric.points){
-        y = 0:N
-        weights <- ker((y - N*design.points[j])/h)
-        A.row <- A.row + weights/(sum(weights))
-      }
-      A.row <- A.row/sum(A.row)
-      A_matrix[,i] = A.row
-      cat(paste0("A Matrix Computed Row: ", i,"/",R_bins), end="\r")
-    }
-    
-  }
-  else {
-    for(i in 1:R_bins){
-      uniform.samp <- runif(n.mc.samp, min = (i - 1)/R_bins, max = (i)/R_bins)
-      
-      y.model.samp <- lapply(uniform.samp, function(x){
-        y = 0:N
-        assumption.weights <- ker((y - N*x)/h)
-        out <- sample(0:N, size = 1, replace = TRUE, prob = assumption.weights)
-        return(out)
-      })
-      y.model.samp <- unlist(y.model.samp)
-      for(j in 0:(N)){
-        A_matrix[j + 1,i] = mean(y.model.samp == j) 
-      }
-      cat(paste0("A Matrix Computed Row: ", i,"/",R_bins), end="\r")
-    }
-  }
-  
-  return(A_matrix)
-}
-
-
-
-A.matrix.binomial <- function(R_bins,  N, numeric.points = 100){
-  #R_bins <- 1000
-  #n.mc.samp <- 3000 # monte carlo samples for accuracy of A matrix computation 
-  A_matrix <- matrix(data = NA, nrow = N + 1, ncol = R_bins)
-  
   for(i in 1:R_bins){
     design.points <- seq((i - 1)/R_bins, (i)/R_bins, length.out = numeric.points)
     A.row <- rep(0, N+1)
     for(j in 1:numeric.points){
       y = 0:N
-      weights <- dbinom(y, size = N, prob = design.points[j])
+      weights <- cond(design.points[j])
       A.row <- A.row + weights/(sum(weights))
     }
     A.row <- A.row/sum(A.row)
@@ -467,6 +430,8 @@ A.matrix.binomial <- function(R_bins,  N, numeric.points = 100){
   }
   return(A_matrix)
 }
+
+
 
 
 
@@ -631,6 +596,30 @@ estimate_mixing_numeric <- function(p.hat, A.matrix, mu){
   
 }
 
+# TODO: feasibility_test function 
+
+test_feasibility_first_order <- function(latent.mixture, A.matrix, p.hat, sample.size){
+  # model implied distribution on Y 
+  p.ma <- A.matrix %*% latent.mixture
+  
+  # likelihood ratio statistic
+  lr <- 2*sample.size*kl_divergence(p.hat, p.ma)
+  
+  k <- length(p.hat)
+  if(lr == Inf){
+    p.feasibility <- 0
+  } else {
+    p.feasibility <- tailProbBound(x = lr, k = k, n = n.samples)
+    if(p.feasibility > 1){
+      p.feasibility <- 1
+    }
+    # numerical rounding error sometimes. 
+    if(p.feasibility < 0){
+      p.feasibility <- 0
+    }
+  }
+  
+}
 
 
 # TODO: rejoin with the other functions 
@@ -707,10 +696,12 @@ A.matrix.binomial.two.obs <- function(R_bins, N,two.obs.mapping, numeric.points 
 }
 
 
-# TODO: unify with the cases, leave tensor or matrix as options for the outputs
-A.two.obs.tensor.compute <- function(R_bins,  N, ker, h, numeric.points = 100){
-  
+
+
+# TODO: name this and delete the other versions 
+compute_A_two_obs_tensor <- function(R_bins, cond, numeric.points = 100){
   # 3d Array for faster computation. 
+  N <- length(cond(0.5)) - 1
   A_3D <- array(NA, dim = c(N+1,N+1,R_bins))
   
   for(i in 1:R_bins){
@@ -722,7 +713,7 @@ A.two.obs.tensor.compute <- function(R_bins,  N, ker, h, numeric.points = 100){
     
     for(j in 1:numeric.points){
       
-      weights <- outer(ker((y1 - N*design.points[j])/h), ker((y2 - N*design.points[j])/h), "*")
+      weights <- outer(cond(design.points[j]), cond(design.points[j]), "*")
       A.block <- A.block + weights/(sum(weights))
     }
     A_3D[,,i] <- A.block/(sum(A.block))
@@ -733,39 +724,51 @@ A.two.obs.tensor.compute <- function(R_bins,  N, ker, h, numeric.points = 100){
 }
 
 
-A.two.obs.tensor.binomial <- function(R_bins,  N, numeric.points = 100){
-  
-  # 3d Array for faster computation. 
-  A_3D <- array(NA, dim = c(N+1,N+1,R_bins))
-  
-  for(i in 1:R_bins){
-    design.points <- seq((i - 1)/R_bins, (i)/R_bins, length.out = numeric.points)
-    
-    A.block <- array(0, dim = c(N+1,N+1))
-    y1 = 0:N
-    y2 = 0:N
-    
-    for(j in 1:numeric.points){
-      
-      weights <- outer(dbinom(y1, size = N, prob = design.points[j]), dbinom(y2, size = N, prob = design.points[j]), "*")
-      A.block <- A.block + weights/(sum(weights))
-    }
-    A_3D[,,i] <- A.block/(sum(A.block))
-    cat(paste0("A Matrix Computed Row: ", i,"/",R_bins), end="\r")
-  }
-  
-  return(A_3D)
-}
 
-
-two.samp.log.likelihood <- function(y.pair, A.two.sample.tensor, latent.mixture.list){
-  M <- nrow(y.pair)
+# TODO: Name this 
+compute_two_obs_loglikelihood <- function(y.paired, A.two.sample.tensor, latent.mixture.list){
+  M <- nrow(y.paired)
   log.likelihood <- 0
   for(m in 1:M){
-    like.tmp <- t(A.two.sample.tensor[y.pair[m,1] +1,y.pair[m,2] + 1,]) %*% latent.mixture.list[[m]]
+    like.tmp <- t(A.two.sample.tensor[y.paired[m,1] +1,y.paired[m,2] + 1,]) %*% latent.mixture.list[[m]]
     log.likelihood <- log.likelihood + log(like.tmp)
   }
   return(log.likelihood)
+}
+
+
+# TODO: Name this 
+compute_joint_dist_beta <- function(beta1.model.y, beta2.model.y,
+                                    beta1.model.z, beta2.model.z,
+                                    cond.y, cond.z, grid.size = 10000){
+  
+  Ny <- length(cond.y(0.5)) - 1
+  Nz <- length(cond.z(0.5)) - 1
+  
+  latent.grid <- seq(0,1, length.out = grid.size)
+  
+  joint.dist <- lapply(latent.grid, function(x){
+    latent.y <- qbeta(x, shape1 = beta1.model.y, shape2 = beta2.model.y)
+    latent.z <- qbeta(x, shape1 = beta1.model.z, shape2 = beta2.model.z)
+    iy = 0:Ny
+    iz = 0:Nz
+    assumption.weights.y <- cond.y(latent.y)
+    assumption.weights.z <- cond.z(latent.z)
+    
+    prob.y <- assumption.weights.y/sum(assumption.weights.y)
+    prob.z <- assumption.weights.z/sum(assumption.weights.z)
+    
+    p.yz <- prob.y %*% t(prob.z)
+    out <- p.yz
+    
+  })
+  
+  p.yz <- matrix(data = 0, nrow = Ny + 1, ncol = Nz + 1)
+  for(i in 1:length(joint.dist)){
+    p.yz <- p.yz + joint.dist[[i]]
+  }
+  p.yz <- p.yz/grid.size
+  return(p.yz)
 }
 
 # TO DO: simplify this method.  I.e. create a categorical variable which covers all the age ranges.  
@@ -950,80 +953,6 @@ intrinsic_variability <- function(pair.obs, latent.mix.list, model.observed.list
 
 
 
-# TODO: should not require a different function for this task 
-intrinsic.variability.binom.samp <- function(pair.obs, latent.mixture, n.samp, N, p.hat){
-  
-  
-  tau <- inv_quantiles_from_weights(latent.mixture)
-  latent.quantiles <- seq(0,1, length.out = length(tau))
-  
-  if(missing(p.hat)){
-    p.hat <- rep(1,N + 1)
-    p.hat <- p.hat/sum(p.hat)
-  }
-  
-  latent.samp <- conditional.binom.samp(y.cond = pair.obs[1], n.samp = n.samp,
-                                        p.hat = p.hat, tau = tau, latent.trait.quantiles = latent.quantiles,
-                                        N = N)
-  
-  
-  y.model.samp <- lapply(latent.samp, function(x){
-    out <- rbinom(n = 1, size = N, prob = x)
-    return(out)
-  })
-  y.model.samp <- unlist(y.model.samp)
-  
-  d.true <- pair.obs[2] - pair.obs[1]
-  d.sim <- y.model.samp - pair.obs[1]
-  
-  out.list <- list("true.diff" = d.true, "sim.diff" = d.sim)
-  return(out.list)
-}
-
-
-
-# TODO: should not require a different function for this task 
-intrinsic.variability.binom <- function(y.true.frame, latent.mix.list, model.observed.list, n.samp, N,show.plot = FALSE, parallel = TRUE){
-  d.true <- y.true.frame[,2] - y.true.frame[,1]
-  
-  d.sim <- c()
-  
-  
-  if(parallel){
-    idx <- 1:nrow(y.true.frame)
-    d.sim.list <- lapply(idx, function(x){
-      latent.mix <- latent.mix.list[[x]]
-      train.p.hat <- model.observed.list[[x]]
-      intrinsic.samp <- intrinsic.variability.binom.samp(pair.obs = as.numeric(y.true.frame[x,]), latent.mixture = latent.mix,
-                                                         n.samp = n.samp, N = N, p.hat = train.p.hat)
-      
-      return(intrinsic.samp$sim.diff)
-    })
-    d.sim <- unlist(d.sim.list)
-  } else {
-    for(i in 1:nrow(y.true.frame)){
-      latent.mix <- latent.mix.list[[i]]
-      train.p.hat <- model.observed.list[[i]]
-      intrinsic.samp <- intrinsic.variability.binom.samp(pair.obs = as.numeric(y.true.frame[i,]), latent.mixture = latent.mix,
-                                                         n.samp = n.samp, N = N, p.hat = train.p.hat)
-      
-      d.true <- c(d.true,intrinsic.samp$true.diff)
-      d.sim <- c(d.sim,intrinsic.samp$sim.diff)
-      cat(paste0("Latent Sample: ", i,"/",nrow(y.true.frame)), end="\r")
-    }
-  }
-  if(show.plot){
-    iv.plot.true <- ggplot(data = NULL, aes(x = d.true)) + geom_histogram(bins = 2*N + 1) + ggtitle("Empirical Variability") + xlab("Score Difference") + ylab("Probability Mass")
-    iv.plot.sim <- ggplot(data = NULL, aes(x = d.sim)) + geom_histogram(bins = 2*N + 1) + ggtitle("Model Variability") + xlab("Score Difference") + ylab("Probability Mass")
-    grid.arrange(arrangeGrob(iv.plot.true, iv.plot.sim, ncol = 2),
-                 nrow = 1)
-  }
-  
-  
-  
-  int.norm <- tv_norm(d.true,d.sim)
-  return(int.norm)
-}
 
 
 # TODO: document
@@ -1197,6 +1126,57 @@ conversion.numeric <- function(y, z, latent.mixture.y, latent.mixture.z,
   return(cond.out)
 }
 
+##### TO DO: EDIT THIS FUNCTION description 
+# Function: Numerically approximate the distribution of second scores, given the first
+# Input: y.obs, the observed score;  must be an integer  
+#        latent.mixture, weights assigning to the discretized latent distribution; vector summing to 1
+#        cond, function defining the conditional distribution of Y|gamma; function [0,1] -> P{0, ..., N}
+# Output: probability : weights in each bin in the latent distribution
+#         observed: list of probabilities assigned to each test score value 
+
+compute_conversion_prob <- function(y, z, latent.mixture.y, latent.mixture.z, 
+                                    cond.y, cond.z, grid.size = 10000){
+  
+  Ny <- length(cond.y(0.5)) - 1
+  Nz <- length(cond.z(0.5)) - 1
+  
+  tau.y <- inv_quantiles_from_weights(latent.mixture.y)
+  latent.quantiles.y <- seq(0,1, length.out = length(tau.y))
+  
+  tau.z <- inv_quantiles_from_weights(latent.mixture.z)
+  latent.quantiles.z <- seq(0,1, length.out = length(tau.z))
+  
+  latent.grid <- seq(0,1, length.out = grid.size)
+  
+  joint.dist <- lapply(latent.grid, function(x){
+    latent.y <- qf_L(x, latent.quantiles.y, tau.y)
+    latent.z <- qf_L(x, latent.quantiles.z, tau.z)
+    iy = 0:Ny
+    iz = 0:Nz
+    assumption.weights.y <- cond.y(latent.y)
+    assumption.weights.z <- cond.z(latent.z)
+    
+    prob.y <- assumption.weights.y/sum(assumption.weights.y)
+    prob.z <- assumption.weights.z/sum(assumption.weights.z)
+    
+    p.yz <- prob.y %*% t(prob.z)
+    out <- p.yz
+    
+  })
+  
+  p.yz <- matrix(data = 0, nrow = Ny + 1, ncol = Nz + 1)
+  for(i in 1:length(joint.dist)){
+    p.yz <- p.yz + joint.dist[[i]]
+  }
+  p.yz <- p.yz/grid.size
+  
+  pz.given.y <- p.yz[y + 1,]/sum(p.yz[y + 1,])
+  
+  cond.prob <- pz.given.y[z + 1]
+  return(cond.prob)
+}
+
+
 
 # TODO: verify if this is ever even necessary 
 
@@ -1363,6 +1343,57 @@ score.conversion <- function(test.pairs, latent.mix.list.y, model.observed.list.
   cat(end = '\n')
   return(out)
 }
+
+
+convert_score_metric <- function(test.pairs, 
+                                 latent.mix.list.y, 
+                                 latent.mix.list.z, 
+                                 cond.y, cond.z, 
+                                 joint.prob,
+                                 grid.size = 1000){
+
+  Ny <- length(cond.y(0.5)) - 1
+  Nz <- length(cond.z(0.5)) - 1
+  
+  # weighting for whether we have access to the joint probabilities 
+  
+  if(missing(joint.prob)){
+    joint.prob <- matrix(data = 1, nrow = Ny + 1, ncol = Nz + 1)
+  }
+  
+  z.true <- test.pairs[,2]
+  z.sim <- c()
+  
+  
+  idx <- 1:nrow(test.pairs)
+  res <- sapply(idx, function(x){
+    latent.mix.y <- latent.mix.list.y[[x]]
+    latent.mix.z <- latent.mix.list.z[[x]]
+
+      
+      
+    conv.prob <- compute_conversion_prob(test.pairs[x,1], test.pairs[x,2], 
+                                         latent.mixture.y = latent.mix.y, 
+                                         latent.mixture.z = latent.mix.z, 
+                                         cond.y = cond.y, 
+                                         cond.z = cond.z, 
+                                         grid.size = grid.size)
+
+      
+    joint.weight <- joint.prob[test.pairs[x,1] + 1, test.pairs[x,2] + 1]
+    result.part <- -joint.weight*log(conv.prob)
+      
+    
+    return(result.part)
+  })
+  
+  out <- sum(res)
+  
+  return(out)
+}
+
+
+
 
 
 

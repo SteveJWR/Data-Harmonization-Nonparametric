@@ -1,0 +1,15 @@
+
+
+# running the interactive session on the cluster
+srun --pty --time=20 --mem-per-cpu=200 --partition=medium /bin/bash
+
+
+# loading the new version of R
+ module load R/4.0.0-foss-2020a
+ 
+ 
+packageurl <- "https://cran.r-project.org/src/contrib/Archive/osqp/osqp_0.6.0.2.tar.gz"
+install.packages(packageurl, repos=NULL, type="source")
+
+
+
