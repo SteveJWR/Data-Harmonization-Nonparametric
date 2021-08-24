@@ -1,7 +1,7 @@
 
 
 # running the interactive session on the cluster
-srun --pty --time=20 --mem-per-cpu=200 --partition=medium /bin/bash
+srun --pty --time=20 --mem-per-cpu=200 --partition=build /bin/bash
 
 
 # loading the new version of R

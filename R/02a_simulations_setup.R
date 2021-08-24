@@ -14,15 +14,21 @@ mu.z <- 0.01390
 
 mu.set.conversion <-  c(0,0.1)# c(0,exp(seq(log(0.001),log(mu.z), length.out = 3)), exp(seq(log(mu.y),log(.3), length.out = 3)))
 
-h.set.feasibility.test <- c(0.25,0.5,1,2,4,7,10,14,20,25,30)
+h.set.feasibility <- c(0.25,0.5,1,2,4,7,10,14,20,25,30)
 
-h.set.speed.test <- c(0.25,0.5, 0.75,1.0,2.0 ,3.0, 5.0, 8.0) 
+h.set.speed <- c(0.25,0.5, 0.75,1.0,2.0 ,3.0, 5.0, 8.0) 
+
+# number of latent bins used in the speed test 
+R_bins.speed <- 300
+
+#number of bins used in the feasibility test 
 
 # number of individuals in the data set
 dataset.size <- 100
 # number of simulations 
 n.sims <- 100
-n.sims.feasibility.test <- 300
+n.sims.feasibility <- 300
+n.sims.speed <- 50
 
 # list of possible tuning parameters for the intrinsic variability 
 hyper.param.idx <- expand.grid(1:length(h.set),1:length(ker.set), 1:length(mu.set))
@@ -97,8 +103,6 @@ A.tensor.model1 <- compute_A_two_obs_tensor(R_bins = 1000, cond = cond.model1, n
 
 
 
-
-
 # Simulation 2 Intrinsic Variability setup 
 # ---------------------------
 
@@ -125,21 +129,21 @@ A.matrix.set.feasibility <- readRDS("Data/A_matrix_set_feasibility.RDS")
 if(!exists("A.matrix.set.feasibility")){
   # Pre computing A matrices
   A.matrix.set.feasibility <- list()
-  for(j in 1:length(h.set)){
+  for(j in 1:length(h.set.feasibility)){
     h.tmp <- h.set.feasibility[j]
     A.matrix.set.feasibility.tmp <- list()
     for(k in 1:length(ker.set)){
       
       ker.tmp <- ker.set[[k]]
-      cond.tmp <- conditional_mkm(N,ker = ker.tmp, h = h.tmp)
+      cond.tmp <- conditional_mkm(N, ker = ker.tmp, h = h.tmp)
       A.mat <- compute_A_matrix(R_bins = 1000, cond = cond.tmp, numeric.points = 400)
       
       # replacing NAN with 0 due to numerical rounding error 
       A.mat[is.nan(A.mat)] <- 0
-      A.matrix.set.tmp[[k]] <- A.mat 
+      A.matrix.set.feasibility.tmp[[k]] <- A.mat 
       
     }
-    A.matrix.set[[j]] <- A.matrix.set.tmp
+    A.matrix.set.feasibility[[j]] <- A.matrix.set.feasibility.tmp
   }
 }
 #saveRDS(A.matrix.set.feasibility, "Data/A_matrix_set_feasibility.RDS")
@@ -152,7 +156,7 @@ A.tensor.set.feasibility <- readRDS("Data/A_tensor_set_feasibility.RDS")
 if(!exists("A.tensor.set.feasibility")){
   # Pre computing A tensors
   A.tensor.set.feasibility <- list()
-  for(j in 1:length(h.set)){
+  for(j in 1:length(h.set.feasibility)){
     h.tmp <- h.set.feasibility[j]
     A.tensor.set.feasibility.tmp <- list()
     for(k in 1:length(ker.set)){
@@ -163,22 +167,62 @@ if(!exists("A.tensor.set.feasibility")){
       
       # replacing NAN with 0 due to numerical rounding error 
       A.tensor[is.nan(A.tensor)] <- 0
-      A.tensor.set.tmp[[k]] <- A.tensor 
+      A.tensor.set.feasibility.tmp[[k]] <- A.tensor 
       
     }
-    A.tensor.set[[j]] <- A.tensor.set.tmp
+    A.tensor.set.feasibility[[j]] <- A.tensor.set.feasibility.tmp
   }
 }
 #saveRDS(A.tensor.set.feasibility, "Data/A_tensor_set_feasibility.RDS")
 
 
 
+# list of possible tuning parameters for the feasibility test 
+hyper.param.feasibility.idx <- expand.grid(1:length(h.set.feasibility),1:length(ker.set))
+
+# compact support kernels must have h >= 1
+idx1 <- hyper.param.feasibility.idx[,1]  %in% which(h.set.feasibility < 1)
+idx2 <- hyper.param.feasibility.idx[,2]  %in% c(3,4)
+
+# Indexing guide for hyper parameter options compared to the sets used 
+hyper.param.feasibility.idx <- hyper.param.feasibility.idx[!(idx1 & idx2),]
+
+
+
+
+### Pre computing speed test matrices
+
+# ---- Feasibility Test Grid options ---- 
+
+# set of possible matrices corresponding to kernel bandwidth pairs
+A.matrix.set.speed <- readRDS("Data/A_matrix_set_speed.RDS")
+if(!exists("A.matrix.set.speed")){
+  # Pre computing A matrices
+  A.matrix.set.speed <- list()
+  for(j in 1:length(h.set.speed)){
+    h.tmp <- h.set.speed[j]
+    A.matrix.set.speed.tmp <- list()
+    ker.tmp <- gaussian_kernel
+    cond.tmp <- conditional_mkm(N,ker = ker.tmp, h = h.tmp)
+    A.mat <- compute_A_matrix(R_bins = R_bins.speed, cond = cond.tmp, numeric.points = 400)
+    
+    
+    # replacing NAN with 0 due to numerical rounding error 
+    A.mat[is.nan(A.mat)] <- 0
+      
+    
+    A.matrix.set.speed[[j]] <- A.mat
+  }
+}
+#saveRDS(A.matrix.set.speed, "Data/A_matrix_set_speed.RDS")
 
 
 
 
 
-## ---- Simulation functions ---- 
+
+
+## ------------ Simulation functions ------------ 
 
 
 simulation_intrinsic_variability_model1 <- function(sim.number){
@@ -469,19 +513,166 @@ simulation_conversion_cross_entropy <- function(sim.number){
 
 ## feasibility test simulations
 
-
-simulation_feasibility_tests <- function(sim.number){
+simulation_feasibility_test_model1 <- function(sim.number){
   set.seed(sim.number)
   
+  # setup of parameters of the simulation
   
-  
-  
+  sim.data <- simulate_beta(n.ind = dataset.size, n.obs.per.ind = 2, 
+                            beta1.y = beta1.model1, beta2.y = beta2.model1, 
+                            cond.y = cond.model1, pair.obs = F)
+  train.p.hat <- compute_edf(sim.data[,1], N)
+  train.bivariate.p.hat <- compute_bivariate_edf(sim.data, N)
+    
+  ## Computes the feasibility test for each model
+  feasibility.test.each.model <- lapply(1:nrow(hyper.param.feasibility.idx), function(x){
+    
+    j = hyper.param.feasibility.idx[x,1]
+    k = hyper.param.feasibility.idx[x,2]
+
+    
+    A.matrix <- A.matrix.set.feasibility[[j]][[k]]
+    A.tensor <- A.tensor.set.feasibility[[j]][[k]]
+    model.estimate <- estimate_mixing_numeric(p.hat = train.p.hat, 
+                                              A.matrix = A.matrix, 
+                                              mu = 0)
+    
+    
+    # feasibility tests
+    p.order1 <- test_feasibility_first_order(latent.mixture = model.estimate$latent, 
+                                             A.matrix = A.matrix, 
+                                             p.hat = train.p.hat, 
+                                             sample.size = dataset.size)
+    
+
+    p.order2 <- test_feasibility_second_order(latent.mixture = model.estimate$latent, 
+                                              A.two.sample.tensor = A.tensor, 
+                                              p.hat = train.bivariate.p.hat, 
+                                              sample.size = dataset.size)
+      
+    out.tests <- list("first_order" = p.order1, 
+                      "second_order" = p.order2)
+    
+    return(out.tests)
+  })
+  return(feasibility.test.each.model)
 }
 
 
 
+### ---- Speed tests ---- 
+
+simulation_speed_test <- function(sim.number){
+  set.seed(sim.number)
+  ## Computes the time it takes to fit each model
+  # setup of parameters of the simulation
+  n.mc.samp <- 1000
+  em.tau <- seq(0,1,length.out = R_bins.speed)
+  # array for computing the results for the latent distribution 
+  results.time <- array(NA, dim = c(length(h.set.speed), 2, length(mu.set)))
+  results.likelihood <- array(NA, dim = c(length(h.set.speed), 2, length(mu.set)))
+  
+  ## Computes the time for each algorithm to be applied to the model 
+  for(l in 1:length(h.set.speed)){
+    h.tmp <- h.set.speed[l]
+    A.model <- A.matrix.set.speed[[l]]
+    
+    
+    cond.model.speed <- conditional_mkm(N, ker = gaussian_kernel, h = h.tmp)
+    
+    sim.data <- simulate_beta(n.ind = dataset.size, n.obs.per.ind = 2, 
+                              beta1.y = beta1.model1, beta2.y = beta2.model1, 
+                              cond.y = cond.model.speed, pair.obs = F)
+    
+    train.p.hat <- compute_edf(sim.data[,1], N)
+    
+    for(k in 1:length(mu.set)){
+      mu.tmp <- mu.set[k]
+      
+      # time this
+      em.time <- system.time(em.quantiles <- fit_nonpar_em(p.hat  = train.p.hat, 
+                                                           cond = cond.model.speed,  
+                                                           R_bins = R_bins.speed, 
+                                                           mu = mu.tmp, 
+                                                           n.mc.samp = n.mc.samp, 
+                                                           verbose = F)) 
+                               
+      
+      #time this 
+      gp.time <- system.time(gp.model.estimate.binned <- estimate_mixing_numeric(p.hat = train.p.hat, 
+                                                                                 A.matrix = A.model, 
+                                                                                 mu = mu.tmp))
+      
+      
+      em.p.ma <- compute_p_ma(tau = em.tau,
+                              latent.trait.quantiles = em.quantiles,
+                              cond = cond,
+                              numeric.points = 100)
+      
+      
+      em.lik <- compute_loglikelihood_from_latent(p.hat = train.p.hat, 
+                                                  p.ma = em.p.ma, 
+                                                  tau = em.tau, 
+                                                  latent.trait.quantiles = em.quantiles,
+                                                  mu = mu.tmp)
+      
+      
+      # Defines the quantiles of the latent bins 
+      gp.tau <- inv_quantiles_from_weights(gp.model.estimate.binned$latent)
+      gp.quantiles <- seq(0,1, length.out = length(gp.tau))
+      
+      gp.p.ma <- as.vector(gp.model.estimate.binned$observed)
+      
+      gp.lik <- compute_loglikelihood_from_latent(p.hat = train.p.hat, 
+                                                  p.ma = gp.p.ma, 
+                                                  tau = gp.tau, 
+                                                  latent.trait.quantiles = gp.quantiles,
+                                                  mu = mu.tmp)
+      
+      
+      results.time[l,1,k] <- em.time[3]
+      results.time[l,2,k] <- gp.time[3]
+      
+      results.likelihood[l,1,k] <- em.lik
+      results.likelihood[l,2,k] <- gp.lik
+        
+      }
+    }
+  
+  out <- list("time" = results.time, "likelihood" = results.likelihood)
+  return(out)
+}
 
 
+
+### ---- simulation framework function --- 
+
+simulate_experiment <- function(RUN_PARALLEL, sim_function, n.sims){
+  if (RUN_PARALLEL) {
+    # Detect number of cores, use all but 1
+    no_cores <- detectCores() - 1
+    # Initiate cluster
+    tictoc::tic()
+    
+    cl <- makeCluster(no_cores, type="FORK",timeout=timeout)
+    
+    
+    # Run computation
+    results = parLapply(cl = cl, X = 1:n.sims, fun = sim_function)
+    # Stop cluster
+    stopCluster(cl)
+    tictoc::toc()
+  } else {
+    tictoc::tic()
+    results = lapply(X = 1:n.sims, FUN = function(z){
+      out <- sim_function(z)
+      cat(paste0("Simulation: ", z, "/",n.sims), end = "\r")
+      return(out)
+      })
+    tictoc::toc()
+  }
+  return(results)
+}
 
 
 

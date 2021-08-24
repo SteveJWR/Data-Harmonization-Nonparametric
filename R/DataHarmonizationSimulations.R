@@ -97,7 +97,7 @@ for(y in 0:(N)){
 
 
 
-# Visualising different mu values 
+# Visualizing different mu values 
 ########################
 mu = 0.1 # 0.001, 0.01, 0.1, 0.4
 
@@ -1925,7 +1925,7 @@ test.joint.dist <- lapply(latent.grid, function(x){
 p.yz <- matrix(data = 0, nrow = Ny + 1, ncol = Nz + 1)
 for(i in 1:length(test.joint.dist)){
   p.yz <- p.yz + test.joint.dist[[i]]
-}
+}overloverlear
 p.yz <- p.yz/grid.size
 test.grid <- expand.grid(0:Ny, 0:Nz)
 
@@ -1936,8 +1936,6 @@ plot(p.yz)
 
 naive.conversion.prob <- function(y,muy,sdy,muz,sdz, Nz){
   z.pred <- muz + (sdz/sdy)*(y - muy)
-  
-  
 
   z.scale <- 0:Nz
   
@@ -2505,18 +2503,6 @@ grid.arrange(arrangeGrob(p.gauss.1, p.exp.1, ncol = 2),
 grid.arrange(arrangeGrob(p.gauss.2, p.exp.2, ncol = 2),                             
              arrangeGrob(p.triangle.2, p.epanechnikov.2, ncol = 2), 
              nrow = 2)   
-
-
-
-png(filename = "plots/extrinsic_variability_sim.png",
-    width = png.width, height = png.height)
-
-
-
-ggarrange(gauss.plot, exp.plot,
-          ncol=2, nrow=1, common.legend = TRUE, legend="right") 
-# Close the pdf file
-dev.off() 
 
 
 

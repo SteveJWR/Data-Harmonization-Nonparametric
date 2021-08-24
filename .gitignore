@@ -2,3 +2,8 @@
 .Rhistory
 .RData
 .Ruserdata
+Data/A_matrix_set_feasibility.RDS
+Data/A_matrix_set_speed.RDS
+Data/A_matrix_set.RDS
+Data/A_tensor_set_feasibility.RDS
+Local_Data/

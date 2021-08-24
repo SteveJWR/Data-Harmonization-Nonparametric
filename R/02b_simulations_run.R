@@ -16,54 +16,32 @@ set.seed(1)
 
 RUN_PARALLEL = FALSE
 timeout = 5000
-n.sims <- 3
+
 
 
 
 
 ##### ----- intrinsic variability simulations model 1 -----
 
-intrinsic.variability.model1.simulation.results.array <- array(NA, dim = c(n.sims, length(h.set), length(ker.set), length(mu.set)))
-
-
-
-if (RUN_PARALLEL) {
-  # Detect number of cores, use all but 1
-  no_cores <- detectCores() - 1
-  # Initiate cluster
-  tictoc::tic()
-  
-  cl <- makeCluster(no_cores, type="FORK",timeout=timeout)
-  
-  
-  # Run computation
-  intrinsic.variability.model1.simulation.results = parLapply(cl = cl, X = 1:n.sims,
-                     fun = simulation_intrinsic_variability_model1)
-  # Stop cluster
-  stopCluster(cl)
-  tictoc::toc()
-} else {
-  tictoc::tic()
-  intrinsic.variability.model1.simulation.results = lapply(X = 1:n.sims,
-                  FUN = simulation_intrinsic_variability_model1)
-  tictoc::toc()
-}
-
-
-for(i in 1:n.sims){
-  for(q in 1:nrow(hyper.param.idx)){
-    j = hyper.param.idx[q,1]
-    k = hyper.param.idx[q,2]
-    l = hyper.param.idx[q,3]
-    intrinsic.variability.model1.simulation.results.array[i,j,k,l] <- intrinsic.variability.model1.simulation.results[[i]][q]
-  }
-}
-
-
-
-saveRDS(intrinsic.variability.model1.simulation.results.array,paste0("Data/results/intrinsic_variability_simulation_model1.rds"))
-
-print("intrinsic variability simulations model 1 complete")
+# intrinsic.variability.model1.simulation.results.array <- array(NA, dim = c(n.sims, length(h.set), length(ker.set), length(mu.set)))
+# 
+# 
+# intrinsic.variability.model1.simulation.results <- simulate_experiment(RUN_PARALLEL, 
+#                                                                        simulation_intrinsic_variability_model1, 
+#                                                                        n.sims)
+# 
+# 
+# for(i in 1:n.sims){
+#   for(q in 1:nrow(hyper.param.idx)){
+#     j = hyper.param.idx[q,1]
+#     k = hyper.param.idx[q,2]
+#     l = hyper.param.idx[q,3]
+#     intrinsic.variability.model1.simulation.results.array[i,j,k,l] <- intrinsic.variability.model1.simulation.results[[i]][q]
+#   }
+# }
+# 
+# saveRDS(intrinsic.variability.model1.simulation.results.array,paste0("Data/results/intrinsic_variability_simulation_model1.rds"))
+# print("intrinsic variability simulations model 1 complete")
 
 
 
@@ -73,29 +51,10 @@ print("intrinsic variability simulations model 1 complete")
 intrinsic.variability.model2.simulation.results.array <- array(NA, dim = c(n.sims, length(h.set), length(ker.set), length(mu.set)))
 
 
-
-if (RUN_PARALLEL) {
-  # Detect number of cores, use all but 1
-  no_cores <- detectCores() - 1
-  # Initiate cluster
-  tictoc::tic()
-  
-  cl <- makeCluster(no_cores, type="FORK",timeout=timeout)
-  
-  
-  # Run computation
-  intrinsic.variability.model2.simulation.results = parLapply(cl = cl, X = 1:n.sims,
-                                                              fun = simulation_intrinsic_variability_model2)
-  # Stop cluster
-  stopCluster(cl)
-  tictoc::toc()
-} else {
-  tictoc::tic()
-  intrinsic.variability.model2.simulation.results = lapply(X = 1:n.sims,
-                                                           FUN = simulation_intrinsic_variability_model2)
-  tictoc::toc()
-}
-
+intrinsic.variability.model2.simulation.results <- simulate_experiment(RUN_PARALLEL, 
+                                                                       simulation_intrinsic_variability_model2, 
+                                                                       n.sims)
+          
 
 for(i in 1:n.sims){
   for(q in 1:nrow(hyper.param.idx)){
@@ -120,87 +79,46 @@ print("intrinsic variability simulations model 2 complete")
 ## --------    Model 1   --------
 
 
-
-smoothing.selection.model1.simulation.results.array <- array(NA, dim = c(n.sims, length(mu.set.long)))
-
-
-if (RUN_PARALLEL) {
-  # Detect number of cores, use all but 1
-  no_cores <- detectCores() - 1
-  # Initiate cluster
-  tictoc::tic()
-  
-  cl <- makeCluster(no_cores, type="FORK",timeout=timeout)
-  
-  
-  # Run computation
-  smoothing.selection.model1.simulation.results = parLapply(cl = cl, X = 1:n.sims,
-                                                              fun = simulation_smoothing_selection_model1)
-  # Stop cluster
-  stopCluster(cl)
-  tictoc::toc()
-} else {
-  tictoc::tic()
-  smoothing.selection.model1.simulation.results = lapply(X = 1:n.sims,
-                                                           FUN = simulation_smoothing_selection_model1)
-  tictoc::toc()
-}
-
-
-for(i in 1:n.sims){
-  for(q in 1:length(mu.set.long)){
-    smoothing.selection.model1.simulation.results.array[i,q] <- smoothing.selection.model1.simulation.results[[i]][q]
-  }
-}
-
-
-
-saveRDS(smoothing.selection.model1.simulation.results.array,paste0("Data/results/smoothing_selection_simulation_model1.rds"))
-
-
-print("mu selection simulations model 1 complete")
+# 
+# smoothing.selection.model1.simulation.results.array <- array(NA, dim = c(n.sims, length(mu.set.long)))
+# 
+# smoothing.selection.model1.simulation.results <- simulate_experiment(RUN_PARALLEL, 
+#                                                                      simulation_smoothing_selection_model1, 
+#                                                                      n.sims)
+# 
+# for(i in 1:n.sims){
+#   for(q in 1:length(mu.set.long)){
+#     smoothing.selection.model1.simulation.results.array[i,q] <- smoothing.selection.model1.simulation.results[[i]][q]
+#   }
+# }
+# 
+# 
+# 
+# saveRDS(smoothing.selection.model1.simulation.results.array,paste0("Data/results/smoothing_selection_simulation_model1.rds"))
+# 
+# 
+# print("mu selection simulations model 1 complete")
 
 
 ## --------    Model 2   --------
 
-
-smoothing.selection.model2.simulation.results.array <- array(NA, dim = c(n.sims, length(mu.set.long)))
-
-
-if (RUN_PARALLEL) {
-  # Detect number of cores, use all but 1
-  no_cores <- detectCores() - 1
-  # Initiate cluster
-  tictoc::tic()
-  
-  cl <- makeCluster(no_cores, type="FORK",timeout=timeout)
-  
-  # Run computation
-  smoothing.selection.model2.simulation.results = parLapply(cl = cl, X = 1:n.sims,
-                                                            fun = simulation_smoothing_selection_model2)
-  # Stop cluster
-  stopCluster(cl)
-  tictoc::toc()
-} else {
-  tictoc::tic()
-  smoothing.selection.model2.simulation.results = lapply(X = 1:n.sims,
-                                                         FUN = simulation_smoothing_selection_model2)
-  tictoc::toc()
-}
-
-
-for(i in 1:n.sims){
-  for(q in 1:length(mu.set.long)){
-    smoothing.selection.model2.simulation.results.array[i,q] <- smoothing.selection.model2.simulation.results[[i]][q]
-  }
-}
-
-
-
-saveRDS(smoothing.selection.model2.simulation.results.array,paste0("Data/results/smoothing_selection_simulation_model2.rds"))
-
-
-print("mu selection simulations model 2 complete")
+# 
+# smoothing.selection.model2.simulation.results.array <- array(NA, dim = c(n.sims, length(mu.set.long)))
+# 
+# smoothing.selection.model2.simulation.results <- simulate_experiment(RUN_PARALLEL, 
+#                                                                      simulation_smoothing_selection_model2, 
+#                                                                      n.sims)
+# 
+# for(i in 1:n.sims){
+#   for(q in 1:length(mu.set.long)){
+#     smoothing.selection.model2.simulation.results.array[i,q] <- smoothing.selection.model2.simulation.results[[i]][q]
+#   }
+# }
+# 
+# saveRDS(smoothing.selection.model2.simulation.results.array,paste0("Data/results/smoothing_selection_simulation_model2.rds"))
+# 
+# 
+# print("mu selection simulations model 2 complete")
 
 
 
@@ -214,29 +132,9 @@ conversion.ce.simulation.results.array <- array(NA, dim = c(n.sims, length(h.set
 conversion.ce.simulation.ml.results.array <- array(NA, dim = c(n.sims, length(h.set), length(ker.set)))
 
 
-
-if (RUN_PARALLEL) {
-  # Detect number of cores, use all but 1
-  no_cores <- detectCores() - 1
-  # Initiate cluster
-  tictoc::tic()
-  
-  cl <- makeCluster(no_cores, type="FORK",timeout=timeout)
-  
-  
-  # Run computation
-  conversion.ce.simulation.results = parLapply(cl = cl, X = 1:n.sims,
-                                               fun = simulation_conversion_cross_entropy)
-  # Stop cluster
-  stopCluster(cl)
-  tictoc::toc()
-} else {
-  tictoc::tic()
-  conversion.ce.simulation.results = lapply(X = 1:n.sims,
-                                            FUN = simulation_conversion_cross_entropy)
-  tictoc::toc()
-}
-
+conversion.ce.simulation.results <- simulate_experiment(RUN_PARALLEL, 
+                                                        simulation_conversion_cross_entropy, 
+                                                        n.sims)
 
 for(i in 1:n.sims){
   for(q in 1:nrow(hyper.param.conversion.idx)){
@@ -265,6 +163,61 @@ print("conversion cross entropy simulations complete")
 ## -------- Feasibility Tests -------- 
 
 
+# feasibility.test.first.order.results.array <- array(NA, dim = c(n.sims.feasibility, length(h.set.feasibility), length(ker.set)))
+# feasibility.test.second.order.results.array <- array(NA, dim = c(n.sims.feasibility, length(h.set.feasibility), length(ker.set)))
+# 
+# 
+# feasibility.test.results <- simulate_experiment(RUN_PARALLEL, 
+#                                                 simulation_feasibility_test_model1, 
+#                                                 n.sims.feasibility)
+# 
+# for(i in 1:n.sims.feasibility){
+#   for(q in 1:nrow(hyper.param.feasibility.idx)){
+#     j = hyper.param.feasibility.idx[q,1]
+#     k = hyper.param.feasibility.idx[q,2]
+#     feasibility.test.first.order.results.array[i,j,k] <- feasibility.test.results[[i]][[q]]$first_order
+#     feasibility.test.second.order.results.array[i,j,k] <- feasibility.test.results[[i]][[q]]$second_order
+#   }
+# }
+# 
+# saveRDS(feasibility.test.first.order.results.array,paste0("Data/results/first_order_feasibility_test_simulations.rds"))
+# saveRDS(feasibility.test.second.order.results.array,paste0("Data/results/second_order_feasibility_test_simulations.rds"))
+# 
+# print("feasibility test simulations complete")
+# 
+# 
+# 
+
+
+
+## -------- Speed Tests -------- 
+
+
+speed.test.time.results.array <- array(NA, dim = c(n.sims.speed, length(h.set.speed), 2, length(mu.set)))
+speed.test.likelihood.results.array <- array(NA, dim = c(n.sims.speed, length(h.set.speed),2, length(mu.set)))
+
+
+speed.test.results <- simulate_experiment(RUN_PARALLEL, 
+                                          simulation_speed_test, 
+                                          n.sims.speed)
+
+
+for(i in 1:n.sims.feasibility){
+  for(l in 1:length(h.set.speed)){
+    for(k in 1:length(mu.set)){
+      speed.test.time.results.array[i,l,1,k] <- speed.test.results[[i]][l,1,k]
+      speed.test.time.results.array[i,l,2,k] <- speed.test.results[[i]][l,2,k]
+      speed.test.likelihood.results.array[i,l,1,k] <- speed.test.results[[i]][l,1,k]
+      speed.test.likelihood.results.array[i,l,2,k] <- speed.test.results[[i]][l,2,k]
+      
+    }
+  }
+}
+
+saveRDS(speed.test.time.results.array,paste0("Data/results/speed_test_time_simulations.rds"))
+saveRDS(speed.test.likelihood.results.array,paste0("Data/results/speed_test_likelihood_simulations.rds"))
+
+print("speed test simulations complete")
 
 
 

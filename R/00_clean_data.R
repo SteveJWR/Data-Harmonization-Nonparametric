@@ -9,6 +9,8 @@ library(dplyr)
 library(gridExtra)
 
 # dataset of all cognitive tests and covariates 
+# TODO: update this full description, request to NACC, to replicate this you may get a different number. 
+
 all_tests <- read.csv("Local_Data/investigator_nacc47.csv")
 
 # indicates cognitively normal individuals 
