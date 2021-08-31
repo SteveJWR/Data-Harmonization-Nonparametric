@@ -1,7 +1,7 @@
 
 # Dependencies
-require(CVXR) # Does require using the MOSEK package 
-require(ggplot2) # 
+require(CVXR) # This require using the MOSEK solver, follow instructions for downloading an academic license through https://cvxr.rbind.io/cvxr_examples/cvxr_using-other-solvers/
+#require(ggplot2) # 
 
 
 # Must be downloaded from https://github.com/richardkwo/multChernoff
@@ -9,8 +9,7 @@ require(multChernoff)
 
 
 
-##  Basic math functions
-# ---------------------------------------------
+##   Basic math functions --------------------------------------------------
 
 logit <- function(x){
   if ({
@@ -18,7 +17,7 @@ logit <- function(x){
   } || {
     any(x > 1)
   }) 
-    stop("x must be in [0,1].")
+    stop("x must be in [0,1]")
   out = log(x/(1-x))
   return(out)
 }
@@ -28,9 +27,201 @@ logistic <- function(x){
 }
 
 
-##  Kernel Functions 
-# ---------------------------------------------
 
+##   Math functions  --------------------------------------------------
+# Function: computes the kl divergence between any two distribution vectors p and q
+# Input: p,q, both are probability distributions, can be numeric, matrix or array   
+# Output: kl divergence between p and q 
+
+kl_divergence <- function(p,q){
+  if(!(all(dim(p) == dim(q)))){
+    stop("p,q must be of the same dimensions" )
+  }
+  out <- p*log(p/q)
+  out[is.nan(out)] <- 0
+  return(sum(out))
+}
+
+
+
+
+# Function: computes the total variation distance between the empirical distributions of the samples 
+# Input: x,y, two samples of a discrete distribution which need not be the same length,  numeric
+# Output: total variation distance between the empirical distributions of x and y 
+tv_norm <- function(x,y){
+  n <- min(min(x), min(y))
+  m <- max(max(x), max(y))
+  
+  Nx <- length(x)
+  Ny <- length(y)
+  
+  series_term <- 0
+  for(k in n:m){
+    series_term <- series_term + abs((sum(x == k)/Nx) - (sum(y == k)/Ny))
+  }
+  out <- (1/2)*series_term
+  return(out)
+}
+
+
+# Function: conditional distribution generated according to the measurement kernel model
+# Input: N;  must be an integer 
+#        ker, number of repeated observations per individual; integer 
+#        h, bandwidth; > 0
+# Output: Conditional Distribution Function for the Measurement Kernel Model
+conditional_mkm <- function(N, ker, h){
+  #ensuring these don't change when changing definitions of N,ker and h
+  force(N)
+  force(ker)
+  force(h)
+  i <- 0:N
+  out.function <- function(gam){
+    out <- ker((i - N*gam)/h)/sum(ker((i - N*gam)/h))
+    return(out)
+  }
+  return(out.function)
+}
+
+
+# Function: compute empirical distribution function
+# Input: N, (support size {0,...,N}); integer 
+#        x, sample of observations; vector of integers
+# Output: Empirical distribution function for x
+compute_edf <- function(x,N){
+  p.hat <- c()
+  for(y in 0:(N)){
+    prop <- mean(x == y)
+    p.hat <- c(p.hat, prop)
+  }
+  return(p.hat)
+}
+
+
+
+
+
+
+# Function: computes a linear approximation to the cdf of a random variable, based a set of quantiles 
+#           and corresponding inverse quantiles 
+# Input: x: argument of the cdf; numeric 
+#        quantiles:  vector of quantiles; numeric 
+#        tau: vector of inverse quantiles; numeric 
+# Output: Empirical distribution function for x
+cdf_L <- function(x,quantiles, tau){
+  
+  i.set <- sapply(x, function(z){
+    out <-  min(which(z <= quantiles))
+    return(out)
+  })
+  
+  out <- sapply(1:length(i.set), function(z){
+    i = i.set[z]
+    out <-  tau[i-1] + (tau[i] - tau[i-1])*((x[z] - quantiles[i-1])/(quantiles[i] - quantiles[i-1]))
+    if(x[z] == 0 ){
+      out <- 0
+    } else if (x[z] == 1){
+      out <- 1
+    } else if (x[z]  < 0 | x[z]  > 1){
+      out <- NA
+    }
+    return(out)
+  })
+  out <- unlist(out)
+  length(out)
+  return(out)
+}
+
+# Function: computes a linear approximation to the inverse cdf (or quantile function) 
+#           of a random variable, based a set of quantiles and corresponding inverse quantiles 
+# Input: x: argument of the cdf; numeric 
+#        quantiles:  vector of quantiles; numeric 
+#        tau: vector of inverse quantiles; numeric 
+# Output: quantile function function for t
+qf_L <- function(t,quantiles, tau){
+  
+  i.set <- sapply(t, function(z){
+    out <-  min(which(z <= tau))
+    return(out)
+  })
+  
+  out <- sapply(1:length(i.set), function(z){
+    i = i.set[z]
+    out <-  quantiles[i-1] + (quantiles[i] - quantiles[i-1])*((t[z] - tau[i-1])/(tau[i] - tau[i-1]))
+    if(t[z] == 0 ){
+      out <- 0
+    } else if (t[z] == 1){
+      out <- 1
+    } else if (t[z]  < 0 | t[z]  > 1){
+      out <- NA
+    }
+    return(out)
+  })
+  
+  
+  
+  
+  return(out)
+}
+
+
+
+# Function: computed the implied distribution on the marginal from a latent distribution and a conditional
+# Input: tau: vector of inverse quantiles; numeric 
+#        latent.trait.quantiles:  vector of quantiles; numeric 
+#        cond: function defining the conditional distribution of Y|gamma; function [0,1] -> {0, ..., N}
+#        numeric.points: tuning parameter for the precision of the numerical approximation; integer 
+# Output: p_ma: a probabilty vector on the observed scores 
+compute_p_ma <- function(tau, latent.trait.quantiles,
+                         cond, numeric.points = 100){
+  
+  R_bins <- length(latent.trait.quantiles) - 1
+  
+  A.matrix <- matrix(data = NA, nrow = N + 1, ncol = R_bins)
+  for(i in 1:R_bins){
+    design.points <- seq(latent.trait.quantiles[i], 
+                         latent.trait.quantiles[i+1], 
+                         length.out = numeric.points)
+    
+    A.row <- rep(0, N+1)
+    for(j in 1:numeric.points){
+      y = 0:N
+      weights <- cond(design.points[j])
+      A.row <- A.row + weights/(sum(weights))
+    }
+    A.row <- A.row/sum(A.row)
+    A.matrix[,i] = A.row
+  }
+  weights <- c()
+  for(i in 1:R_bins){
+    weights[i] <- tau[i + 1] - tau[i]
+  }
+  p.ma <- A.matrix %*% weights
+  return(p.ma)
+}
+
+
+
+# Function: computes the inverse quantiles from a set of uniformly binned latent weights 
+# Input: latent.mixture: vector of weights in a uniform bin 
+# Output: tau: a vector of the inverse quantiles corresponding to the edges of the latent mixture bins 
+
+inv_quantiles_from_weights <- function(latent.mixture){
+  tau <- rep(NA, length(latent.mixture) + 1)
+  tau[1] <- 0
+  run.sum <- 0
+  for(i in 1:length(latent.mixture)){
+    run.sum <- run.sum + latent.mixture[i]
+    tau[i + 1] <- run.sum
+  }
+  # numerical error correction
+  tau[tau > 1] = 1
+  return(tau)
+}
+
+
+##   Kernel Functions ----------------------------------------
+
+# all of these are simple functions which can be used to define a kernel function 
 
 gaussian_kernel <- function(x){
   return(exp(-x^2/2))
@@ -86,157 +277,16 @@ cosine_kernel <- function(x){
 
 
 
-# Function: groups the sex and education variables into 4 particular categories (used for cleaning the real data set)
-# Input: data set with sex and educ as variables 
-# Output: new data set replacing those two with a corresponding group 
-#       1: female, low education 
-#       2: male, low education 
-#       3: female, high education 
-#       4: male, high education 
-
-categorize <- function(data){
-  tmp <- data %>% mutate(group = ifelse(((sex == 1) & (educ <= 16)), 1, 
-                                        ifelse(((sex == 2) & (educ <= 16)), 2, 
-                                               ifelse(((sex == 1) & (educ > 16)), 3, 4))))
-  tmp <- tmp[, !names(tmp) %in% c('sex','educ')]  
-  tmp$group <- factor(tmp$group)
-  return(tmp)
-}
+##   Latent model fitting functions  ----------------------------------------
 
 
-
-
-# measurement_kernel_sample <- function(size, lat, N, ker, h){
-#   i = 0:N
-#   probs <- ker((i - N*lat)/h)
-#   probs <- probs/(sum(probs))
-#   out <- sample(0:N, size = size, replace = TRUE, prob = probs)
-#   return(out)
-# }
-
-
-# TODO: rename all conditional.samp to sample_latent_conditional
-
-##### TO DO: EDIT THIS FUNCTION
-# Function: Numerically approximate the distribution of second test score, given the first
-# Input: y.obs, the observed score;  must be an integer  
-#        latent.mixture, weights assigning to the discretized latent distribution; vector summing to 1
-#        cond, function defining the conditional distribution of Y|gamma; function [0,1] -> P{0, ..., N}
-# Output: probability : weights in each bin in the latent distribution
-#         observed: list of probabilities assigned to each test score value 
-
-
-second_score_conditional <- function(y.obs, latent.mixture, cond){
-  
-  tau <- inv_quantiles_from_weights(latent.mixture)
-  
-  # corresponding quantiles to the latent mixture
-  latent.quantiles <- seq(0,1, length.out = length(tau))
-  
-  R_bins <- length(latent.mixture)
-  latent.points <- sapply(1:R_bins, function(z){
-    gam <- (latent.quantiles[z] + latent.quantiles[z+1])/2
-    return(gam)
-  })
-  
-  
-  joint.dist.grid  <- sapply(1:R_bins, function(gam.idx){
-    gam <- latent.points[gam.idx]
-    weight <- latent.mixture[gam.idx]
-    
-    out.y1y2.joint <- cond(gam) %o% cond(gam)
-    prob.row <- out.y1y2.joint[,y.obs + 1]
-    out <- prob.row*weight
-    return(out)
-  })
-  
-  cond.prob <- rowSums(joint.dist.grid)
-  cond.prob <- cond.prob/sum(cond.prob)
-  return(cond.prob)
-}
-
-# TODO: delete
-# conditional.binom.samp <- function(y.cond, n.samp,  p.hat, tau, latent.trait.quantiles, N){
-#   
-#   p.approx <- p.hat[y.cond + 1] # probability of conditional distribution 
-#   
-#   n_parallel <- round(2*n.samp/p.approx)
-#   
-#   n_tau <- length(tau) - 1
-#   weights <- c()
-#   for(i in 1:n_tau){
-#     weights[i] <- tau[i + 1] - tau[i]
-#   }
-#   if(n_parallel >= 50000000){
-#     n_parallel <- 50000000
-#   }
-#   # outcome 
-#   out <- c()
-#   while (length(out) < n.samp){
-#     latent.idx <- sample(1:n_tau, size = n_parallel, replace = TRUE, prob = weights)
-#     low_bounds <- latent.trait.quantiles[latent.idx]
-#     high_bounds <- latent.trait.quantiles[latent.idx + 1]
-#     latent.sample <- runif(n_parallel, min = low_bounds, max = high_bounds)
-#     
-#     y.model.samp <- sapply(latent.sample, function(x){
-#       i = 0:N
-#       out <- rbinom(1, size = N, prob = x)
-#       return(out)
-#     })
-#     
-#     keep.latent.idx <- (y.model.samp == y.cond)
-#     
-#     out <- c(out, latent.sample[keep.latent.idx])
-#     #print(paste0(length(out), " of ", n.samp))
-#   }
-#   out <- out[1:n.samp]
-#   return(out)
-#   
-# }
-
-
-# TODO: delete 
-# TODO:  
-# mc.em.samp <- function(p.hat, tau, latent.trait.quantiles, N, ker, J, h){
-#   # tau and quantiles must be of the same length
-#   # must be ordered 
-#   
-#   
-#   n_tau <- length(tau) - 1
-#   n_parallel <- J # blocking sampling
-#   
-#   weights <- c()
-#   for(i in 1:n_tau){
-#     weights[i] <- tau[i + 1] - tau[i]
-#   }
-#   # weights based on differences of quantiles 
-#   
-#   out <- c()
-#   
-#   while (length(out) < J){
-#     # latent.idx <- sample(1:n_tau, size = n_parallel, replace = TRUE, prob = weights)
-#     # low_bounds <- latent.trait.quantiles[latent.idx]
-#     # high_bounds <- latent.trait.quantiles[latent.idx + 1]
-#     # latent.sample <- runif(n_parallel, min = low_bounds, max = high_bounds)
-#     # 
-#     y.hat.samp <- sample(0:N, size = n_parallel, replace = TRUE, prob = p.hat)
-#     
-#     gamma.step.samp <- lapply(y.hat.samp, function(x){
-#       
-#       out.tmp <- conditional.samp(y.cond = x, n.samp = 1,  p.hat = p.hat, tau = tau, 
-#                                   latent.trait.quantiles = latent.trait.quantiles, 
-#                                   N = N, ker = ker, h = h)
-#       return(out.tmp)
-#     })
-#     gamma.step.samp <- unlist(gamma.step.samp)
-#     out <- c(out, gamma.step.samp)
-#     #print(paste0(length(out), " of ", J))
-#   }
-#   return(out)
-# }
-
-# TODO: doc this 
-
+# Function: sample from the latent distribution given an observed score. 
+# Input: y.obs, the observed score value   
+#        n.mc.samp,  number of samples from gamma|Y 
+#        tau: a set of inverse quantiles corresponding to the edges of the bins of the latent distribution 
+#        latent.mixture, input is a list of weights assigned to a uniformly binned latent distribution
+#        cond, function defining the conditional distribution of Y|gamma; function [0,1] -> {0, ..., N}
+# Output: a vector of samples from gamma|Y
 
 sample_latent_conditional <- function(y.obs, n.mc.samp, tau, latent.trait.quantiles, cond){
   
@@ -290,7 +340,14 @@ sample_latent_conditional <- function(y.obs, n.mc.samp, tau, latent.trait.quanti
 }
 
 
-# TODO: doc this 
+# Function: sample from the next EM step for updating the latent distribution. 
+# Input: y.obs: the observed score value   
+#        mu:  regularization parameter
+#        tau: a set of inverse quantiles corresponding to the edges of the bins of the latent distribution 
+#        latent.mixture: input is a list of weights assigned to a uniformly binned latent distribution
+#        cond: function defining the conditional distribution of Y|gamma; function [0,1] -> {0, ..., N}
+#        n.mc.samp:  number of monte carlo samples from the em update step 
+# Output: a vector of samples from gamma|Y
 
 sample_mc_em <- function(p.hat, mu, tau, latent.trait.quantiles, cond, n.mc.samp){
   # tau and quantiles must be of the same length
@@ -326,7 +383,7 @@ sample_mc_em <- function(p.hat, mu, tau, latent.trait.quantiles, cond, n.mc.samp
       } else {
         out <- c()
       }
-
+      
       return(out)
     })
     gamma.em.step.samp <- unlist(gamma.em.step.samp)
@@ -347,124 +404,16 @@ sample_mc_em <- function(p.hat, mu, tau, latent.trait.quantiles, cond, n.mc.samp
 
 
 
-# TODO: delete
-# reg.mc.em.samp <- function(latent, mu){
-#   n_latent <- length(latent)
-#   mixture.prop <- mu
-#   mixture.n <- round(n_latent*mixture.prop) # round to nearest integer 
-#   uniform.mixture <- runif(mixture.n)
-#   out <- c(latent,uniform.mixture)
-#   return(out)
-# }
 
+# Function: computes the loglikelihood value from  
+# Input: y.obs: the observed score value   
+#        mu:  regularization parameter
+#        tau: a set of inverse quantiles corresponding to the edges of the bins of the latent distribution 
+#        latent.mixture: input is a list of weights assigned to a uniformly binned latent distribution
+#        cond: function defining the conditional distribution of Y|gamma; function [0,1] -> {0, ..., N}
+#        n.mc.samp:  number of monte carlo samples from the em update step 
+# Output: a vector of samples from gamma|Y
 
-# TODO: delete
-# likelihood.value <- function(p.hat, tau, latent.trait.quantiles, N, ker, h, J = 100000, mu = 0){
-#   
-#   n_parallel <- 10000
-#   n_tau <- length(tau) - 1
-#   weights <- c()
-#   for(i in 1:n_tau){
-#     weights[i] <- tau[i + 1] - tau[i]
-#   }
-#   
-#   y.model.samp <- c()
-#   
-#   while(length(y.model.samp) < J){
-#     latent.idx <- sample(1:n_tau, size = n_parallel, replace = TRUE, prob = weights)
-#     low_bounds <- latent.trait.quantiles[latent.idx]
-#     high_bounds <- latent.trait.quantiles[latent.idx + 1]
-#     latent.sample <- runif(n_parallel, min = low_bounds, max = high_bounds)
-#     
-#     y.model.samp.tmp <- lapply(latent.sample, function(x){
-#       i = 0:N
-#       assumption.weights <- ker((i - N*x)/h)
-#       out <- sample(0:N, size = 1, replace = TRUE, prob = assumption.weights)
-#       return(out)
-#     })
-#     y.model.samp.tmp <- unlist(y.model.samp.tmp)
-#     y.model.samp <- c(y.model.samp, y.model.samp.tmp)
-#   }
-#   
-#   like.val <- 0 
-#   for(i in 0:(N)){
-#     like.val.tmp <- p.hat[i+1]*log(mean(y.model.samp == i))
-#     if(is.nan(like.val.tmp)){
-#       like.val.tmp <- 0
-#     }
-#     like.val <- like.val + like.val.tmp
-#   }
-#   if(mu > 0){
-#     
-#     widths <- c()
-#     dens.heights <- c()
-#     for(i in 1:n_tau){
-#       widths[i] <- (latent.trait.quantiles[i + 1] - latent.trait.quantiles[i])
-#       dens.heights[i] <- weights[i]/widths[i]
-#     }
-#     reg.lik.val <- sum(log(dens.heights)*widths)
-#     like.val <- like.val + reg.lik.val
-#   }
-#   return(like.val)
-# }
-
-
-# TODO: delete
-# nonpar.em.fit <- function(p.hat, tau, latent.trait.quantiles, N, ker, J, h, mu = 0, verbose = F){
-#   threshold <- 10^(-6)
-#   
-#   
-#   current.quantiles <- latent.trait.quantiles
-#   n.quantiles <- length(current.quantiles)
-#   
-# 
-#   p.ma <- p.ma.from.latent(tau = tau,
-#                            latent.trait.quantiles = current.quantiles,
-#                            ker = ker,h = h,N = N,
-#                            mu = mu,
-#                            numeric.points = 100)
-#   
-#   
-#   prev.likelihood <- compute.likelihood(p.hat = p.hat, 
-#                                         p.ma = p.ma, tau = tau, 
-#                                         latent.trait.quantiles = current.quantiles,
-#                                         N = N, mu = mu)
-#   diff.likelihood <- Inf
-#   em.steps <- 1
-#   while(diff.likelihood >= threshold){
-#     latent.sample <- mc.em.samp(p.hat = p.hat, tau = tau, latent.trait.quantiles = current.quantiles, 
-#                                 N = N, ker = ker, J = J, h = h)
-#     latent.sample <- reg.mc.em.samp(latent.sample, mu)
-#     current.quantiles <- quantile(latent.sample, tau, names = FALSE)
-#     current.quantiles[1] <- 0
-#     current.quantiles[n.quantiles] <- 1
-# 
-#     p.ma <- p.ma.from.latent(tau = tau,
-#                              latent.trait.quantiles = current.quantiles,
-#                              ker = ker,h = h,N = N,
-#                              mu = mu,
-#                              numeric.points = 100)
-#     
-#     new.likelihood <- compute.likelihood(p.hat = p.hat, 
-#                                          p.ma = p.ma, tau = tau, 
-#                                          latent.trait.quantiles = current.quantiles,
-#                                          N = N, mu = mu.tmp)
-#     
-#     diff.likelihood <- new.likelihood - prev.likelihood
-#     prev.likelihood <- new.likelihood
-#     if(verbose){
-#       print(paste0("EM Steps: ", em.steps, " || Likelihood Change: ", diff.likelihood))
-#     }
-#     
-#     em.steps <- em.steps + 1
-#   }
-#   if(verbose){
-#     print(paste0("Stochastic EM converged"))
-#   }
-#   return(current.quantiles)
-# }
-
-# TODO: doc this 
 
 compute_loglikelihood_from_latent <- function(p.hat, p.ma, tau, 
                                               latent.trait.quantiles,
@@ -498,6 +447,8 @@ compute_loglikelihood_from_latent <- function(p.hat, p.ma, tau,
   return(out)
   
 }
+
+
 
 
 
@@ -582,7 +533,8 @@ fit_nonpar_em <- function(p.hat, cond,  R_bins = 300, mu = 0, n.mc.samp = 1000, 
 # Output: latent: weights in each bin in the latent distribution
 #         observed: list of probabilities assigned to each test score value 
 
-compute_A_matrix <- function(R_bins, cond, numeric.points = 100){
+
+compute_A_matrix <- function(R_bins, cond, numeric.points = 100, verbose = F){
   N <- length(cond(0.5)) - 1
   A_matrix <- matrix(data = NA, nrow = N + 1, ncol = R_bins)
   for(i in 1:R_bins){
@@ -595,140 +547,54 @@ compute_A_matrix <- function(R_bins, cond, numeric.points = 100){
     }
     A.row <- A.row/sum(A.row)
     A_matrix[,i] = A.row
-    cat(paste0("A Matrix Computed Row: ", i,"/",R_bins), end="\r")
+    if(verbose){
+      cat(paste0("A Matrix Computed Row: ", i,"/",R_bins), end="\r")
+    }
   }
   return(A_matrix)
 }
 
 
 
+# Function: compute the A tensor using a binned latent approximation 
+# Input: R_bins, the number of uniform latent bins  must an integer  
+#        cond, function defining the conditional distribution of Y|gamma; function [0,1] -> {0, ..., N}
+#        numeric.points,  number of points used in the numeric approximation of A
+# Output: latent: weights in each bin in the latent distribution
+#         observed: list of probabilities assigned to each test score value 
 
-
-# TODO: delete
-# kl.div <- function(p, q){
-#   K <- length(p) 
-#   out <- 0 
-#   for( k in 1:K){
-#     out.tmp <- p[k]*log(p[k]/q[k])
-#     if(!is.nan(out.tmp)){
-#       out <- out +out.tmp
-#     }
-#   }
-#   out <- out 
-#   return(out)
-# }
-
-# TODO: document
-kl_divergence <- function(p,q){
-  out <- p*log(p/q)
-  out[is.nan(out)] <- 0
-  return(sum(out))
-}
-
-# TODO: delete
-# tv_norm.dist <- function(p,q){
-#   (1/2)*sum(abs(p - q))
-# }
-
-
-# TODO: Clarify which one of each of these is useful 
-tv_norm <- function(x,y){
-  n <- min(min(x), min(y))
-  m <- max(max(x), max(y))
+compute_A_two_obs_tensor <- function(R_bins, cond, numeric.points = 100, verbose = F){
+  # 3d Array for faster computation. 
+  N <- length(cond(0.5)) - 1
+  A_3D <- array(NA, dim = c(N+1,N+1,R_bins))
   
-  Nx <- length(x)
-  Ny <- length(y)
-  
-  series_term <- 0
-  for(k in n:m){
-    series_term <- series_term + abs((sum(x == k)/Nx) - (sum(y == k)/Ny))
+  for(i in 1:R_bins){
+    design.points <- seq((i - 1)/R_bins, (i)/R_bins, length.out = numeric.points)
+    
+    A.block <- array(0, dim = c(N+1,N+1))
+    y1 = 0:N
+    y2 = 0:N
+    
+    for(j in 1:numeric.points){
+      
+      weights <- outer(cond(design.points[j]), cond(design.points[j]), "*")
+      A.block <- A.block + weights/(sum(weights))
+    }
+    A_3D[,,i] <- A.block/(sum(A.block))
+    if(verbose){
+      cat(paste0("A Tensor Computed Row: ", i,"/",R_bins), end="\r")
+    }
   }
-  out <- (1/2)*series_term
-  return(out)
+  
+  return(A_3D)
 }
 
 
 
-
-
-
-# TODO: delete
-
-# numeric.latent.fit <- function(p.hat, A.matrix, mu, n.samples, show.plot = FALSE, feasibility.test = FALSE){
-#   require(CVXR)
-#   require(ggplot2)
-#   require(multChernoff)
-#   
-#   
-#   if(missing(n.samples)){
-#     n.samples <- NA
-#   }
-#   R_bins <- ncol(A.matrix)
-#   N <- nrow(A.matrix) - 1
-#   theta <- Variable(R_bins, name = "latent discretized distribution")
-#   obs.dist <- Variable(N + 1, name = "model observed distribution")
-#   
-#   data.obj <-  t(p.hat) %*% log(obs.dist)
-#   #data.obj <- -kl_div(p.hat,obs.dist)
-#   #pen.obj <- (mu/R_bins)*t(rep(1, R_bins)) %*% log(theta) 
-#   pen.obj <- (mu/R_bins)*t(rep(1, R_bins)) %*% log(theta) 
-#   
-#   constraints <- list(
-#     obs.dist == A.matrix %*% theta,
-#     sum(theta) <= 1,
-#     mu/(R_bins*(1 + mu)) <= theta
-#   )
-#   
-#   obj.arg <- data.obj + pen.obj
-#   obj <- Maximize(obj.arg)
-#   p <- Problem(obj, constraints)
-#   
-#   
-#   #value(theta) <- rep(1/R_bins, R_bins) # initial guess of a uniform distribution
-#   result <- solve(p, solver = "MOSEK")
-#   #result <- solve(p, verbose = TRUE)
-#   
-#   p.m <- result$getValue(theta)
-#   p.ma <- result$getValue(obs.dist)
-#   out.list <- list("latent" = p.m, "observed" = p.ma)
-#   if(show.plot){
-#     p.max <- max(c(p.hat,p.ma))
-#     y.max <- p.max*1.15
-#     plot.ptrue <- ggplot(data = NULL, aes(x = seq(0,N, length.out = N + 1), y = p.hat)) + geom_point() + ggtitle("Empirical Observed Score") + xlab(expression( widehat(p) )) + ylab("Probability Mass") + ylim(0,y.max)
-#     plot.pma <- ggplot(data = NULL, aes(x = seq(0,N, length.out = N + 1), y = p.ma)) + geom_point() +  ggtitle(paste0("Observed Score Estimate \u00b5 = ", mu)) + xlab(bquote("p"[MA])) + ylab("Probability Mass") + ylim(0,y.max)
-#     plot.pm <- ggplot(data = NULL, aes(x = seq(0,1, length.out = R_bins), y = R_bins*p.m)) + geom_line() + ggtitle(paste0("Latent Estimate \u00b5 = ", mu)) + xlab("Gamma") + ylab("Density") 
-#     grid.arrange(plot.pm,                             
-#                  arrangeGrob(plot.ptrue, plot.pma, ncol = 2), 
-#                  nrow = 2)   
-#   } 
-#   # requires mu = 0 for the feasibility test 
-#   if(feasibility.test & mu == 0){
-#     
-#     lrt.val <- 2*n.samples*kl.div(p.hat, p.ma)
-#     k <- length(p.hat)
-#     if(lrt.val == Inf){
-#       p.feasibility <- 0
-#     } else {
-#       p.feasibility <- tailProbBound(x = lrt.val, k = k, n = n.samples)
-#       if(p.feasibility > 1){
-#         p.feasibility <- 1
-#       }
-#       if(p.feasibility < 0){
-#         p.feasibility <- 0
-#       }
-#     }
-#     
-#     out.list <- list("latent" = p.m, "observed" = p.ma, "p_value" = p.feasibility)
-#   }
-#   
-#   
-#   return(out.list)
-#   
-# }
 
 
 # Function: Estimate the latent distribution using a convex solver 
-# Input: p.hat, a discrete empirical distribution function;  must be an vector of integers  
+# Input: p.hat, a discrete empirical distribution function;  numeric  
 #        A.matrix, matrix which maps a vector of uniform bins to the observed data; matrix 
 #        mu,  regularization parameter; >= 0
 # Output: latent: weights in each bin in the latent distribution
@@ -767,8 +633,13 @@ estimate_mixing_numeric <- function(p.hat, A.matrix, mu){
 }
 
 
+##   Feasibility tests ---------
 
-# TODO: feasibility_test function documentation
+# Function: computes the first order feasibility test 
+# Input: latent.mixture, a vector of weights for the latent distribution; numeric            
+#        A.matrix, matrix which maps a vector of uniform bins to the observed data; matrix 
+#        p.hat, a discrete empirical distribution function;  must be an vector of numeric values  
+# Output: p.feasibility: p value for the feasibility test, is at minimum e-8 due to numerical rounding issues 
 
 test_feasibility_first_order <- function(latent.mixture, A.matrix, p.hat, sample.size){
   # model implied distribution on Y 
@@ -797,6 +668,12 @@ test_feasibility_first_order <- function(latent.mixture, A.matrix, p.hat, sample
   return(p.feasibility)
 }
 
+
+# Function: computes the second order feasibility test 
+# Input: latent.mixture, a vector of weights for the latent distribution; numeric            
+#        A.two.sample.tensor, tensor which maps a vector of uniform bins to the bivariate observed data distribution; 3D tensor 
+#        p.hat, a discrete empirical distribution function;  must be an vector of numeric values  
+# Output: p.feasibility: p value for the feasibility test, is at minimum e-8 due to numerical rounding issues 
 
 test_feasibility_second_order <- function(latent.mixture, A.two.sample.tensor, p.hat, sample.size){
   # model implied distribution on Y 
@@ -836,110 +713,57 @@ test_feasibility_second_order <- function(latent.mixture, A.two.sample.tensor, p
 }
 
 
-# TODO: delete 
-# A.matrix.compute.two.obs <- function(R_bins,  N, ker, h, two.obs.mapping, numeric.points = 100){
-#   
-#   A_matrix <- matrix(data = NA, nrow = (N + 1)^2, ncol = R_bins)
-#   # 3d Array for faster computation. 
-#   A_3D <- array(NA, dim = c(N+1,N+1,R_bins))
-#   
-#   for(i in 1:R_bins){
-#     design.points <- seq((i - 1)/R_bins, (i)/R_bins, length.out = numeric.points)
-#     
-#     A.block <- array(0, dim = c(N+1,N+1))
-#     y1 = 0:N
-#     y2 = 0:N
-#     
-#     for(j in 1:numeric.points){
-#       
-#       weights <- outer(ker((y1 - N*design.points[j])/h), ker((y2 - N*design.points[j])/h), "*")
-#       A.block <- A.block + weights/(sum(weights))
-#     }
-#     A_3D[,,i] <- A.block/(sum(A.block))
-#     cat(paste0("A Matrix Computed Row: ", i,"/",R_bins), end="\r")
-#   }
-#   
-#   for(k in 1:((N+1)^2)){
-#     
-#     y1.idx = two.obs.mapping[k,1]
-#     y2.idx = two.obs.mapping[k,2]
-#     
-#     
-#     A_matrix[k,] <- A_3D[y1.idx + 1,y2.idx + 1,]
-#   }
-#   
-#   return(A_matrix)
-# }
 
+##   Model Selection Functions ----------------------------------------
 
-# TODO: delete
-# A.matrix.binomial.two.obs <- function(R_bins, N,two.obs.mapping, numeric.points = 100){
-#   
-#   A_matrix <- matrix(data = NA, nrow = (N + 1)^2, ncol = R_bins)
-#   # 3d Array for faster computation. 
-#   A_3D <- array(NA, dim = c(N+1,N+1,R_bins))
-#   
-#   for(i in 1:R_bins){
-#     design.points <- seq((i - 1)/R_bins, (i)/R_bins, length.out = numeric.points)
-#     
-#     A.block <- array(0, dim = c(N+1,N+1))
-#     y1 = 0:N
-#     y2 = 0:N
-#     
-#     for(j in 1:numeric.points){
-#       
-#       weights <- outer(dbinom(y1, size = N, prob = design.points[j]), dbinom(y2, size = N, prob = design.points[j]), "*")
-#       
-#       A.block <- A.block + weights/(sum(weights))
-#     }
-#     
-#     A_3D[,,i] <- A.block/(sum(A.block))
-#     cat(paste0("A Matrix Computed Row: ", i,"/",R_bins), end="\r")
-#   }
-#   
-#   for(k in 1:((N+1)^2)){
-#     
-#     y1.idx = two.obs.mapping[k,1]
-#     y2.idx = two.obs.mapping[k,2]
-#     
-#     
-#     A_matrix[k,] <- A_3D[y1.idx + 1,y2.idx + 1,]
-#   }
-#   
-#   return(A_matrix)
-# }
+# Function: Numerically approximate the distribution of second test score, given the first
+# Input: y.obs, the observed score;  must be an integer  
+#        latent.mixture, weights assigning to the discretized latent distribution; vector summing to 1
+#        cond, function defining the conditional distribution of Y|gamma; function [0,1] -> P{0, ..., N}
+# Output: probability : weights in each bin in the latent distribution
+#         observed: list of probabilities assigned to each test score value 
 
 
 
-
-# TODO: doc
-compute_A_two_obs_tensor <- function(R_bins, cond, numeric.points = 100){
-  # 3d Array for faster computation. 
-  N <- length(cond(0.5)) - 1
-  A_3D <- array(NA, dim = c(N+1,N+1,R_bins))
+second_score_conditional <- function(y.obs, latent.mixture, cond){
   
-  for(i in 1:R_bins){
-    design.points <- seq((i - 1)/R_bins, (i)/R_bins, length.out = numeric.points)
-    
-    A.block <- array(0, dim = c(N+1,N+1))
-    y1 = 0:N
-    y2 = 0:N
-    
-    for(j in 1:numeric.points){
-      
-      weights <- outer(cond(design.points[j]), cond(design.points[j]), "*")
-      A.block <- A.block + weights/(sum(weights))
-    }
-    A_3D[,,i] <- A.block/(sum(A.block))
-    cat(paste0("A Matrix Computed Row: ", i,"/",R_bins), end="\r")
-  }
+  tau <- inv_quantiles_from_weights(latent.mixture)
   
-  return(A_3D)
+  # corresponding quantiles to the latent mixture
+  latent.quantiles <- seq(0,1, length.out = length(tau))
+  
+  R_bins <- length(latent.mixture)
+  latent.points <- sapply(1:R_bins, function(z){
+    gam <- (latent.quantiles[z] + latent.quantiles[z+1])/2
+    return(gam)
+  })
+  
+  
+  joint.dist.grid  <- sapply(1:R_bins, function(gam.idx){
+    gam <- latent.points[gam.idx]
+    weight <- latent.mixture[gam.idx]
+    
+    out.y1y2.joint <- cond(gam) %o% cond(gam)
+    prob.row <- out.y1y2.joint[,y.obs + 1]
+    out <- prob.row*weight
+    return(out)
+  })
+  
+  cond.prob <- rowSums(joint.dist.grid)
+  cond.prob <- cond.prob/sum(cond.prob)
+  return(cond.prob)
 }
 
 
 
-# TODO: doc
+# TODO: Edit this lil guy here 
+# Function: Estimate the latent distribution using a convex solver 
+# Input: p.hat, a discrete empirical distribution function;  numeric  
+#        A.matrix, matrix which maps a vector of uniform bins to the observed data; matrix 
+#        mu,  regularization parameter; >= 0
+# Output: latent: weights in each bin in the latent distribution
+#         observed: list of probabilities assigned to each test score value 
+
 compute_two_obs_loglikelihood <- function(y.paired, A.two.sample.tensor, latent.mixture.list){
   M <- nrow(y.paired)
   log.likelihood <- 0
@@ -949,6 +773,9 @@ compute_two_obs_loglikelihood <- function(y.paired, A.two.sample.tensor, latent.
   }
   return(log.likelihood)
 }
+
+
+
 
 
 # TODO: doc
@@ -985,88 +812,9 @@ compute_joint_dist_beta <- function(beta1.model.y, beta2.model.y,
   return(p.yz)
 }
 
-# TO DO: simplify this method.  I.e. create a categorical variable which covers all the age ranges.  
-cond.dist.est <- function(x.design, train.data, outcome, N, age.window = 3){
-  out.p.hat <- matrix(data = NA, nrow = nrow(x.design), ncol = N + 1)
-  for(i in 1:nrow(x.design)){
-    x <- x.design[i,]
-    idx1 <- x$group == train.data$group 
-    idx2 <- abs(x$age - train.data$age) <= age.window
-    idx <- idx1 & idx2
-    sub.dat <- train.data[idx,]
-    obs.set <- 0:N
-    summary.dat <- sub.dat %>%
-      group_by_(outcome) %>%
-      summarise(Count = n()) 
-    summary.dat <- as.data.frame(summary.dat)
-    
-    n <- sum(summary.dat$Count)
-    
-    missing.obs <- obs.set[!obs.set %in% summary.dat[1:nrow(summary.dat),outcome]]
-    missing.block <- data.frame(y = missing.obs, Count = rep(0,length(missing.obs)))
-    colnames(missing.block)[1] <- outcome
-    summary.dat <- rbind(summary.dat, missing.block)
-    
-    summary.dat <- summary.dat %>% arrange_(outcome)
-    
-    p.hat <- summary.dat$Count/sum(summary.dat$Count)
-    out.p.hat[i,] <- p.hat
-  }
-  
-  return(out.p.hat)
-}
 
 
-# Function: compute the corresponding quantiles given a uniformly binned weight vector
-# Input: latent.mixture, input is a list of weights assigned to a uniformly binned latent distribution
-# Output: tau: a set of quantiles corresponding to the edges of the bins of the latent distribution 
 
-inv_quantiles_from_weights <- function(latent.mixture){
-  tau <- rep(NA, length(latent.mixture) + 1)
-  tau[1] <- 0
-  run.sum <- 0
-  for(i in 1:length(latent.mixture)){
-    run.sum <- run.sum + latent.mixture[i]
-    tau[i + 1] <- run.sum
-  }
-  # numerical error correction
-  tau[tau > 1] = 1
-  return(tau)
-}
-
-
-# TODO: delete after replacement
-# 
-# intrinsic.variability.samp <- function(pair.obs, latent.mixture, n.samp, N, ker,h, p.hat){
-#   
-#   
-#   tau <- inv_quantiles_from_weights(latent.mixture)
-#   latent.quantiles <- seq(0,1, length.out = length(tau))
-#   
-#   if(missing(p.hat)){
-#     p.hat <- rep(1,N + 1)
-#     p.hat <- p.hat/sum(p.hat)
-#   }
-#   
-#   latent.samp <- conditional.samp(y.cond = pair.obs[1], n.samp = n.samp,
-#                                   p.hat = p.hat, tau = tau, latent.trait.quantiles = latent.quantiles,
-#                                   N = N, ker = ker, h = h)
-#   
-#   
-#   y.model.samp <- lapply(latent.samp, function(x){
-#     i = 0:N
-#     assumption.weights <- ker((i - N*x)/h)
-#     out <- sample(0:N, size = 1, replace = TRUE, prob = assumption.weights)
-#     return(out)
-#   })
-#   y.model.samp <- unlist(y.model.samp)
-#   
-#   d.true <- pair.obs[2] - pair.obs[1]
-#   d.sim <- y.model.samp - pair.obs[1]
-#   
-#   out.list <- list("true.diff" = d.true, "sim.diff" = d.sim)
-#   return(out.list)
-# }
 
 
 ##### TO DO: EDIT THIS FUNCTION
@@ -1092,48 +840,6 @@ intrinsic_variability_sample <- function(pair.obs, n.samp, latent.mixture, cond)
 }
 
 
-# TODO: simplify to a single version that can use any conditional 
-
-# intrinsic.variability <- function(y.true.frame, latent.mix.list, model.observed.list, n.samp, N, ker, h, show.plot = FALSE, parallel = TRUE){
-#   d.true <- y.true.frame[,2] - y.true.frame[,1]
-#   d.sim <- c()
-#   
-#   
-#   if(parallel){
-#     idx <- 1:nrow(y.true.frame)
-#     d.sim.list <- lapply(idx, function(x){
-#       latent.mix <- latent.mix.list[[x]]
-#       train.p.hat <- model.observed.list[[x]]
-#       intrinsic.samp <- intrinsic.variability.samp(pair.obs = as.numeric(y.true.frame[x,]), latent.mixture = latent.mix,
-#                                                    n.samp = n.samp, N = N, ker = ker, h = h, p.hat = train.p.hat)
-#       
-#       return(intrinsic.samp$sim.diff)
-#     })
-#     d.sim <- unlist(d.sim.list)
-#   } else {
-#     for(i in 1:nrow(y.true.frame)){
-#       latent.mix <- latent.mix.list[[i]]
-#       train.p.hat <- model.observed.list[[i]]
-#       intrinsic.samp <- intrinsic.variability.samp(pair.obs = as.numeric(y.true.frame[i,]), latent.mixture = latent.mix,
-#                                                    n.samp = n.samp, N = N, ker = ker, h = h, p.hat = train.p.hat)
-#       
-#       d.true <- c(d.true,intrinsic.samp$true.diff)
-#       d.sim <- c(d.sim,intrinsic.samp$sim.diff)
-#       cat(paste0("Latent Sample: ", i,"/",nrow(y.true.frame)), end="\r")
-#     }
-#   }
-#   if(show.plot){
-#     iv.plot.true <- ggplot(data = NULL, aes(x = d.true)) + geom_histogram(bins = 2*N + 1) + ggtitle("Empirical Variability") + xlab("Score Difference") + ylab("Probability Mass")
-#     iv.plot.sim <- ggplot(data = NULL, aes(x = d.sim)) + geom_histogram(bins = 2*N + 1) + ggtitle("Model Variability") + xlab("Score Difference") + ylab("Probability Mass")
-#     grid.arrange(arrangeGrob(iv.plot.true, iv.plot.sim, ncol = 2),
-#                  nrow = 1)
-#   }
-#   
-#   
-#   
-#   int.norm <- tv_norm(d.true,d.sim)
-#   return(int.norm)
-# }
 
 
 
@@ -1144,8 +850,9 @@ intrinsic_variability_sample <- function(pair.obs, n.samp, latent.mixture, cond)
 #        model.observed.list,  list of corresponding distributions on the observed data
 # Output: latent: weights in each bin in the latent distribution
 #         observed: list of probabilities assigned to each test score value 
+# TODO: Delete model.observed.list
 
-intrinsic_variability <- function(pair.obs, latent.mix.list, model.observed.list, n.samp, cond){
+intrinsic_variability <- function(pair.obs, latent.mix.list, n.samp, cond){
   # samples from the true q0 distribution 
   e.true <- pair.obs[,2] - pair.obs[,1]
   n <- nrow(pair.obs)
@@ -1169,178 +876,17 @@ intrinsic_variability <- function(pair.obs, latent.mix.list, model.observed.list
 
 
 
-# TODO: delete
-# placeholder_est <-function(){
-#   out <- list('latent' = NULL, 'observed' = NULL, 'p_value' = 0)
-#   return(out)
-# }
 
 
-# TODO: document
-cdf_L <- function(x,quantiles, tau){
-  
-  i.set <- sapply(x, function(z){
-    out <-  min(which(z <= quantiles))
-    return(out)
-  })
-  
-  out <- sapply(1:length(i.set), function(z){
-    i = i.set[z]
-    out <-  tau[i-1] + (tau[i] - tau[i-1])*((x[z] - quantiles[i-1])/(quantiles[i] - quantiles[i-1]))
-    if(x[z] == 0 ){
-      out <- 0
-    } else if (x[z] == 1){
-      out <- 1
-    } else if (x[z]  < 0 | x[z]  > 1){
-      out <- NA
-    }
-    return(out)
-  })
-  out <- unlist(out)
-  length(out)
-  return(out)
-}
-
-# TODO: document
-qf_L <- function(t,quantiles, tau){
-  
-  i.set <- sapply(t, function(z){
-    out <-  min(which(z <= tau))
-    return(out)
-  })
-  
-  out <- sapply(1:length(i.set), function(z){
-    i = i.set[z]
-    out <-  quantiles[i-1] + (quantiles[i] - quantiles[i-1])*((t[z] - tau[i-1])/(tau[i] - tau[i-1]))
-    if(t[z] == 0 ){
-      out <- 0
-    } else if (t[z] == 1){
-      out <- 1
-    } else if (t[z]  < 0 | t[z]  > 1){
-      out <- NA
-    }
-    return(out)
-  })
-  
-  
-  
-  
-  return(out)
-}
-
-# TODO: delete
-# latent.mix.val <- function(x,latent.mixture){
-#   R_bins <- length(latent.mixture)
-#   binpoints <- seq(0,1, length.out = R_bins + 1)
-#   
-#   dens.height <- sapply(x, function(z){
-#     idx <- which.min(binpoints <= z) - 1 # Selects proper bin for density height 
-#     out <- latent.mixture[idx]*R_bins
-#     if(z == 1){
-#       out <- latent.mixture[R_bins]
-#     } else if (z < 0 | z > 1){
-#       out <- NA
-#     }
-#     return(out)})
-#   
-#   return(dens.height)
-# }
+##   Conversion Functions ----------------------------------------
 
 
-# TODO: delete 
-# wasserstein1 <- function(z.true, z.pred){
-#   abs.diff <- abs(z.true - z.pred)
-#   out <- mean(abs.diff)
-#   return(out)
-# }
 
 
-# TODO: document and come up with a consistent naming scheme
-# TODO: replace . with _ 
-# TODO: delete
-# conversion.numeric <- function(y, z, latent.mixture.y, latent.mixture.z, 
-#                                Ny, Nz, ker.y, ker.z, hy, hz, p.ma.y, 
-#                                binomial.y = F, binomial.z = F){
-#   
-#   if((missing(ker.y) | missing(hy) ) & ! binomial.y){
-#     stop("Missing Meaurement model on Y")
-#   }
-#   
-#   if((missing(ker.z) | missing(hz) ) & ! binomial.z){
-#     stop("Missing Meaurement model on Z")
-#   }
-#   
-#   if((missing(ker.y) | missing(hy))){
-#     ker.y <- NA
-#     hy <- NA
-#   }
-#   
-#   if((missing(ker.z) | missing(hz))){
-#     ker.z <- NA
-#     hz <- NA
-#   }
-#   
-#   tau.y <- inv_quantiles_from_weights(latent.mixture.y)
-#   latent.quantiles.y <- seq(0,1, length.out = length(tau.y))
-#   
-#   tau.z <- inv_quantiles_from_weights(latent.mixture.z)
-#   latent.quantiles.z <- seq(0,1, length.out = length(tau.z))
-#   
-#   R_bins <- length(latent.mixture.y)
-#   latent.points <- sapply(1:R_bins, function(z){
-#     gam <- (latent.quantiles.y[z] + latent.quantiles.y[z+1])/2
-#     return(gam)
-#   })
-#   
-#   ######################################################
-#   ######################################################
-#   
-#   if(!binomial.y){
-#     p.ay <- function(y,gam){
-#       i <- 0:Ny
-#       out <- ker.y((y - Ny*gam)/hy)/sum(ker.y((i - Ny*gam)/hy))
-#     }
-#   }
-#   
-#   
-#   if(!binomial.z){
-#     p.az <- function(z,zeta){
-#       j <- 0:Nz
-#       out <- ker.z((z - Nz*zeta)/hz)/sum(ker.z((j - Nz*zeta)/hz))
-#     }
-#   }
-#   
-#   if(binomial.y){
-#     p.ay <- function(y,gam){
-#       out <- dbinom(x = y, size = Ny, prob = gam)
-#     }
-#   }
-#   
-#   
-#   if(binomial.z){
-#     p.az <- function(z,zeta){
-#       out <- dbinom(x = z, size = Nz, prob = zeta)
-#     }
-#   }
-#   
-#   
-#   joint.dist.grid  <- sapply(1:R_bins, function(gam.idx){
-#     gam <- latent.points[gam.idx]
-#     weight <- latent.mixture.y[gam.idx]
-#     zeta.point <- qf_L(cdf_L(gam, latent.quantiles.y, tau.y), latent.quantiles.z, tau.z)
-#     
-#     out.y <- p.ay(y,gam)
-#     out.z <- p.az(z,zeta.point)
-#     out <- out.y*out.z*weight
-#     return(out)
-#   })
-#   denom <- p.ma.y[y + 1]
-#   cond.out <- sum(joint.dist.grid)/(denom)
-#   
-#   return(cond.out)
-# }
 
-##### TO DO: EDIT THIS FUNCTION description 
+#### Score Conversion Functions 
+
+### TO DO: EDIT THIS FUNCTION description 
 # Function: Numerically approximate the distribution of second scores, given the first
 # Input: y.obs, the observed score;  must be an integer  
 #        latent.mixture, weights assigning to the discretized latent distribution; vector summing to 1
@@ -1392,181 +938,12 @@ compute_conversion_prob <- function(y, z, latent.mixture.y, latent.mixture.z,
 
 
 
-# TODO: delete 
-# 
-# conversion.samp <- function(y, z, latent.mixture.y, latent.mixture.z, n.samp, Ny, Nz, ker.y, ker.z, hy, hz, p.hat.y){
-#   tau.y <- inv_quantiles_from_weights(latent.mixture.y)
-#   latent.quantiles.y <- seq(0,1, length.out = length(tau.y))
-#   
-#   tau.z <- inv_quantiles_from_weights(latent.mixture.z)
-#   latent.quantiles.z <- seq(0,1, length.out = length(tau.z))
-#   
-#   
-#   if(missing(p.hat.y)){
-#     p.hat <- rep(1,Ny + 1)
-#     p.hat <- p.hat/sum(p.hat)
-#   }
-#   
-#   # sample latent gamma (y's latent variable)
-#   latent.samp.y <- conditional.samp(y.cond = y, n.samp = n.samp,
-#                                     p.hat = p.hat.y, 
-#                                     tau = tau.y, 
-#                                     latent.trait.quantiles = latent.quantiles.y,
-#                                     N = Ny, ker = ker.y, h = hy)
-#   
-#   
-#   # converting scores by the linear interpolation of quantiles
-#   
-#   latent.samp.z <- qf_L(cdf_L(latent.samp.y, latent.quantiles.y, tau.y), latent.quantiles.z, tau.z)
-#   
-#   z.model.samp <- sapply(latent.samp.z, function(x){
-#     i = 0:Nz
-#     assumption.weights <- ker.z((i - Nz*x)/hz)
-#     out <- sample(0:Nz, size = 1, replace = TRUE, prob = assumption.weights)
-#     return(out)
-#   })
-#   
-#   
-#   diff.true <- z - y
-#   diff.sim <- z.model.samp - y
-#   
-#   z.true <- z
-#   z.sim <- z.model.samp
-#   
-#   out.list <- list("true.diff" = diff.true, "sim.diff" = diff.sim, "z.true" = z, "z.sim" = z.model.samp)
-#   return(out.list)
-# }
-
-
-# TODO: delete
-# TODO: rename
-
-# 
-# score.conversion <- function(test.pairs, latent.mix.list.y, model.observed.list.y,
-#                              latent.mix.list.z, model.observed.list.z, Ny, ker.y, hy,
-#                              Nz, ker.z, hz, joint.prob,n.samp = 5, method = "CrossEntropy", 
-#                              binomial.y = F, binomial.z = F){
-#   # output error if binomial false and missing kernel and bandwidth
-#   
-#   if((missing(ker.y) | missing(hy) ) & ! binomial.y){
-#     stop("Missing Meaurement model on Y")
-#   }
-#   
-#   if((missing(ker.z) | missing(hz) ) & ! binomial.z){
-#     stop("Missing Meaurement model on Z")
-#   }
-#   
-#   if((missing(ker.y) | missing(hy))){
-#     ker.y <- NA
-#     hy <- NA
-#   }
-#   
-#   if((missing(ker.z) | missing(hz))){
-#     ker.z <- NA
-#     hz <- NA
-#   }
-#   
-#   if(missing(joint.prob)){
-#     joint.prob <- matrix(data = 1, nrow = Ny + 1, ncol = Nz + 1)
-#   }
-#   d.true <- test.pairs[,2] - test.pairs[,1]
-#   z.true <- test.pairs[,2]
-#   d.sim <- c()
-#   z.sim <- c()
-#   
-#   
-#   idx <- 1:nrow(test.pairs)
-#   res <- sapply(idx, function(x){
-#     latent.mix.y <- latent.mix.list.y[[x]]
-#     p.ma.y <- model.observed.list.y[[x]]
-#     
-#     latent.mix.z <- latent.mix.list.z[[x]]
-#     p.ma.z <- model.observed.list.z[[x]]
-#     
-#     if(method == "CrossEntropy"){
-#       
-#       if(!binomial.y & !binomial.z){
-#         conv.prob <- conversion.numeric(y = test.pairs[x,1], z = test.pairs[x,2],
-#                                         latent.mixture.y = latent.mix.y,
-#                                         latent.mixture.z = latent.mix.z,
-#                                         Ny = Ny, Nz = Nz,
-#                                         ker.y = ker.y, ker.z = ker.z,
-#                                         hy = hy, hz = hz, p.ma.y = p.ma.y)
-#       }
-#       
-#       if(!binomial.y & binomial.z){
-#         conv.prob <- conversion.numeric(y = test.pairs[x,1], z = test.pairs[x,2],
-#                                         latent.mixture.y = latent.mix.y,
-#                                         latent.mixture.z = latent.mix.z,
-#                                         Ny = Ny, Nz = Nz,
-#                                         ker.y = ker.y, 
-#                                         hy = hy, p.ma.y = p.ma.y, binomial.z = T)
-#       }
-#       
-#       if(binomial.y & !binomial.z){
-#         conv.prob <- conversion.numeric(y = test.pairs[x,1], z = test.pairs[x,2],
-#                                         latent.mixture.y = latent.mix.y,
-#                                         latent.mixture.z = latent.mix.z,
-#                                         Ny = Ny, Nz = Nz,
-#                                         ker.z = ker.z,
-#                                         hz = hz, p.ma.y = p.ma.y, binomial.y = T)
-#       }
-#       
-#       if(binomial.y & binomial.z){
-#         conv.prob <- conversion.numeric(y = test.pairs[x,1], z = test.pairs[x,2],
-#                                         latent.mixture.y = latent.mix.y,
-#                                         latent.mixture.z = latent.mix.z,
-#                                         Ny = Ny, Nz = Nz,
-#                                         p.ma.y = p.ma.y, binomial.y = T, binomial.z = T)
-#       }
-#       
-#       joint.weight <- joint.prob[test.pairs[x,1] + 1, test.pairs[x,2] + 1]
-#       out <- -joint.weight*log(conv.prob)
-#       
-#     } else if (method == "ExtrinsicVariability"){
-#       conversions <- conversion.samp(y = test.pairs[x,1], z = test.pairs[x,2],
-#                                      latent.mixture.y = latent.mix.y,
-#                                      latent.mixture.z = latent.mix.z,
-#                                      n.samp = n.samp, Ny = Ny, Nz = Nz,
-#                                      ker.y = ker.y, ker.z = ker.z,
-#                                      hy = hy, hz = hz, p.hat.y = p.ma.y)
-#       out <- conversions$sim.diff
-#     } else if (method == "Wasserstein1"){
-#       conversions <- conversion.samp(y = test.pairs[x,1], z = test.pairs[x,2],
-#                                      latent.mixture.y = latent.mix.y,
-#                                      latent.mixture.z = latent.mix.z,
-#                                      n.samp = n.samp, Ny = Ny, Nz = Nz,
-#                                      ker.y = ker.y, ker.z = ker.z,
-#                                      hy = hy, hz = hz, p.hat.y = p.ma.y)
-#       pred.samp <- conversions$z.sim
-#       z.true <- conversions$z.true
-#       out <- wasserstein1(z.true, pred.samp)
-#     }
-#     cat(paste0("Test sample ", x, '/',nrow(test.pairs)), end = '\r')
-#     return(out)
-#   })
-#   
-#   if(method == "CrossEntropy" ){
-#     out <- sum(res)
-#   } else if (method == "ExtrinsicVariability"){
-#     out <- tv_norm(d.true,res)
-#   } else if (method == "Wasserstein1"){
-#     out <- sum(res)
-#   }
-#   
-#   cat(end = '\n')
-#   return(out)
-# }
 
 # TODO: name and document 
 
-convert_score_metric <- function(test.pairs, 
-                                 latent.mix.list.y, 
-                                 latent.mix.list.z, 
-                                 cond.y, cond.z, 
-                                 joint.prob,
-                                 grid.size = 1000){
-
+convert_score_metric <- function(test.pairs, latent.mix.list.y, latent.mix.list.z, 
+                                 cond.y, cond.z, joint.prob, grid.size = 1000){
+  
   Ny <- length(cond.y(0.5)) - 1
   Nz <- length(cond.z(0.5)) - 1
   
@@ -1584,20 +961,20 @@ convert_score_metric <- function(test.pairs,
   res <- sapply(idx, function(x){
     latent.mix.y <- latent.mix.list.y[[x]]
     latent.mix.z <- latent.mix.list.z[[x]]
-
-      
-      
+    
+    
+    
     conv.prob <- compute_conversion_prob(test.pairs[x,1], test.pairs[x,2], 
                                          latent.mixture.y = latent.mix.y, 
                                          latent.mixture.z = latent.mix.z, 
                                          cond.y = cond.y, 
                                          cond.z = cond.z, 
                                          grid.size = grid.size)
-
-      
+    
+    
     joint.weight <- joint.prob[test.pairs[x,1] + 1, test.pairs[x,2] + 1]
     result.part <- -joint.weight*log(conv.prob)
-      
+    
     
     return(result.part)
   })
@@ -1609,89 +986,7 @@ convert_score_metric <- function(test.pairs,
 
 
 
-
-
-
-# TODO: delete,  
-
-# p.ma.from.latent <- function(tau,latent.trait.quantiles,
-#                              ker,h,N,
-#                              mu = 0,
-#                              numeric.points = 100){
-# 
-#   R_bins <- length(latent.trait.quantiles) - 1
-#   A_matrix <- matrix(data = NA, nrow = N + 1, ncol = R_bins)
-#   for(i in 1:R_bins){
-#     design.points <- seq(latent.trait.quantiles[i], 
-#                          latent.trait.quantiles[i+1], 
-#                          length.out = numeric.points)
-#     A.row <- rep(0, N+1)
-#     for(j in 1:numeric.points){
-#       y = 0:N
-#       weights <- ker((y - N*design.points[j])/h)
-#       A.row <- A.row + weights/(sum(weights))
-#     }
-#     A.row <- A.row/sum(A.row)
-#     A_matrix[,i] = A.row
-#     #cat(paste0("A Matrix Computed Row: ", i,"/",R_bins), end="\r")
-#   }
-#   
-#   weights <- c()
-#   for(i in 1:R_bins){
-#     weights[i] <- tau[i + 1] - tau[i]
-#   }
-#   p.ma <- A_matrix %*% weights
-#   return(p.ma)
-# }
-
-
-# TODO: document this one
-
-compute_p_ma <- function(tau,
-                         latent.trait.quantiles,
-                         cond,
-                         numeric.points = 100){
-  
-  R_bins <- length(latent.trait.quantiles) - 1
-  
-  A.matrix <- matrix(data = NA, nrow = N + 1, ncol = R_bins)
-  for(i in 1:R_bins){
-    design.points <- seq(latent.trait.quantiles[i], 
-                         latent.trait.quantiles[i+1], 
-                         length.out = numeric.points)
-    
-    A.row <- rep(0, N+1)
-    for(j in 1:numeric.points){
-      y = 0:N
-      weights <- cond(design.points[j])
-      A.row <- A.row + weights/(sum(weights))
-    }
-    A.row <- A.row/sum(A.row)
-    A.matrix[,i] = A.row
-  }
-  weights <- c()
-  for(i in 1:R_bins){
-    weights[i] <- tau[i + 1] - tau[i]
-  }
-  p.ma <- A.matrix %*% weights
-  return(p.ma)
-}
-
-
-
-# TODO: delete
-
-# quantile.conversion.prob <- function(y,quantile_map_yz, decay_rate, Nz, n.samp = 100000){
-#   z.pred <- quantile_map_yz[y + 1]
-#   
-#   z.scale <- 0:Nz
-#   probs <- exp(-decay_rate*abs(z.pred - z.scale))
-#   
-#   out <- probs/sum(probs)
-#   return(out)
-# }
-
-
+##   Parametric model functions  ---------------------------------------------
 
 # TODO: rename and clarify what this is for (parametric)
 renormalized_r_function <- function(N, ker, h, is.binomial = F, grid.size = 100000){
@@ -1747,6 +1042,8 @@ fit_logitnorm_model <- function(k, X, latent.variational.moments){
 }
 
 
+
+### TODO: Change this and stick to functional programming 
 
 # TODO: rename, to psi function, parametric conversion 
 conv_fx <- setRefClass("Parametric Conversion Function",
@@ -1909,8 +1206,7 @@ naive.conversion.prob <- function(y,muy,sdy,muz,sdz, Nz){
 
 
 
-##   Functions 
-# ---------------------------------------------
+##   Functions for simulations ---------------------------------------------
 
 
 
@@ -1969,49 +1265,6 @@ simulate_beta <- function(n.ind, n.obs.per.ind, beta1.y, beta2.y, cond.y, beta1.
 }
 
 
-# Function: conditional distribution generated according to the measurement kernel model
-# Input: N;  must be an integer 
-#        ker, number of repeated observations per individual; integer 
-#        h, bandwidth; > 0
-# Output: Conditional Distribution Function for the Measurement Kernel Model
-conditional_mkm <- function(N, ker, h){
-  i <- 0:N
-  out.function <- function(gam){
-    out <- ker((i - N*gam)/h)/sum(ker((i - N*gam)/h))
-    return(out)
-  }
-  return(out.function)
-}
-
-
-# Function: compute empirical distribution function
-# Input: N, (support size {0,...,N}); integer 
-#        x, sample of observations; vector of integers
-# Output: Empirical distribution function for x
-compute_edf <- function(x,N){
-  p.hat <- c()
-  for(y in 0:(N)){
-    prop <- mean(x == y)
-    p.hat <- c(p.hat, prop)
-  }
-  return(p.hat)
-}
-
-
-# Function: compute empirical distribution function
-# Input: x, sample of observations; matrix of a pair of integers for each row
-#        N, (support size {0,...,N}); integer 
-# Output: Bivariate empirical distribution function for x
-compute_bivariate_edf <- function(x,N){
-  p.hat <- matrix(nrow = N+1, ncol = N+1)
-  for(y in 0:(N)){
-    for(z in 0:N){
-      prop <- mean(x[,1] == y & x[,2] == z)
-      p.hat[y+1,z+1] <- prop
-    }
-  }
-  return(p.hat)
-}
 
 
 
@@ -2071,6 +1324,63 @@ summarize_simulations <- function(results){
   
   return(out)
   
+}
+
+
+
+##   Data Analysis functions  ------------------------------------------------------
+
+
+# Function: groups the sex and education variables into 4 particular categories (used for cleaning the real data set)
+# Input: data set with sex and educ as variables 
+# Output: new data set replacing those two with a corresponding group 
+#       1: female, low education 
+#       2: male, low education 
+#       3: female, high education 
+#       4: male, high education 
+
+categorize <- function(data){
+  tmp <- data %>% mutate(group = ifelse(((sex == 1) & (educ <= 16)), 1, 
+                                        ifelse(((sex == 2) & (educ <= 16)), 2, 
+                                               ifelse(((sex == 1) & (educ > 16)), 3, 4))))
+  tmp <- tmp[, !names(tmp) %in% c('sex','educ')]  
+  tmp$group <- factor(tmp$group)
+  return(tmp)
+}
+
+
+
+
+##   TRASHBIN ---------------------------------------------
+# TO DO: delete after using simplified one 
+cond.dist.est <- function(x.design, train.data, outcome, N, age.window = 3){
+  out.p.hat <- matrix(data = NA, nrow = nrow(x.design), ncol = N + 1)
+  for(i in 1:nrow(x.design)){
+    x <- x.design[i,]
+    idx1 <- x$group == train.data$group 
+    idx2 <- abs(x$age - train.data$age) <= age.window
+    idx <- idx1 & idx2
+    sub.dat <- train.data[idx,]
+    obs.set <- 0:N
+    summary.dat <- sub.dat %>%
+      group_by_(outcome) %>%
+      summarise(Count = n()) 
+    summary.dat <- as.data.frame(summary.dat)
+    
+    n <- sum(summary.dat$Count)
+    
+    missing.obs <- obs.set[!obs.set %in% summary.dat[1:nrow(summary.dat),outcome]]
+    missing.block <- data.frame(y = missing.obs, Count = rep(0,length(missing.obs)))
+    colnames(missing.block)[1] <- outcome
+    summary.dat <- rbind(summary.dat, missing.block)
+    
+    summary.dat <- summary.dat %>% arrange_(outcome)
+    
+    p.hat <- summary.dat$Count/sum(summary.dat$Count)
+    out.p.hat[i,] <- p.hat
+  }
+  
+  return(out.p.hat)
 }
 
 

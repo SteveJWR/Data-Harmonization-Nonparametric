@@ -12,7 +12,7 @@ mu.set.long <- c(0,exp(seq(log(0.001),log(.1), length.out = 15))) # For selectio
 mu.y <- 0.01930
 mu.z <- 0.01390 
 
-mu.set.conversion <-  c(0,0.1)# c(0,exp(seq(log(0.001),log(mu.z), length.out = 3)), exp(seq(log(mu.y),log(.3), length.out = 3)))
+mu.set.conversion <-  c(0,exp(seq(log(0.001),log(mu.z), length.out = 3)), exp(seq(log(mu.y),log(.3), length.out = 3)))
 
 h.set.feasibility <- c(0.25,0.5,1,2,4,7,10,14,20,25,30)
 
@@ -27,8 +27,9 @@ R_bins.speed <- 300
 dataset.size <- 100
 # number of simulations 
 n.sims <- 100
+n.sims.conversion <- 5 # Takes much longer than the others
 n.sims.feasibility <- 300
-n.sims.speed <- 50
+n.sims.speed <- 25 # Takes much longer than the others
 
 # list of possible tuning parameters for the intrinsic variability 
 hyper.param.idx <- expand.grid(1:length(h.set),1:length(ker.set), 1:length(mu.set))
@@ -265,8 +266,6 @@ simulation_intrinsic_variability_model1 <- function(sim.number){
   })
   return(intrinsic.variability.each.model)
 }
-
-
 
 
 simulation_intrinsic_variability_model2 <- function(sim.number){
@@ -647,7 +646,7 @@ simulation_speed_test <- function(sim.number){
 
 ### ---- simulation framework function --- 
 
-simulate_experiment <- function(RUN_PARALLEL, sim_function, n.sims){
+simulate_experiment <- function(RUN_PARALLEL, sim_function, n.sims, start.sim = 1){
   if (RUN_PARALLEL) {
     # Detect number of cores, use all but 1
     no_cores <- detectCores() - 1
@@ -664,7 +663,7 @@ simulate_experiment <- function(RUN_PARALLEL, sim_function, n.sims){
     tictoc::toc()
   } else {
     tictoc::tic()
-    results = lapply(X = 1:n.sims, FUN = function(z){
+    results = lapply(X = start.sim:n.sims, FUN = function(z){
       out <- sim_function(z)
       cat(paste0("Simulation: ", z, "/",n.sims), end = "\r")
       return(out)

@@ -2,9 +2,10 @@
 library(gridExtra)
 library(ggpubr)
 library(RColorBrewer)
-library(R.utils)
 library(dplyr)
-library(tidyr)
+#library(tidyr)
+library(R.utils)
+
 
 set.seed(2)
 
@@ -15,15 +16,19 @@ source("R/02a_simulations_setup.R")
 ##### Figure information 
 png.width = 1200
 png.height = 1000
+png.res = 200 
 
-title.size = 40 
-axis.ticks.size = 22 
-axis.size = 30  
+title.size = 16 
+axis.ticks.size = 10 
+axis.size = 12  
 
-small.title.size = 26 
-small.axis.ticks.size = 16 
-small.axis.size = 18  
+small.title.size = 12 
+small.axis.ticks.size = 8 
+small.axis.size = 10 
 
+extra.small.title.size = 10
+extra.small.axis.ticks.size = 6
+extra.small.axis.size = 8
 
 
 
@@ -125,7 +130,7 @@ epanechnikov.plot <- ggplot(data = epanechnikov.frame, aes(x = h, y = total.vari
 
 
 png(filename = "Plots/intrinsic_variability_simulation_model1_large.png",
-    width = png.width, height = png.height)
+    width = png.width, height = png.height, res = png.res)
 
 ggarrange(gauss.plot, exp.plot, 
           triangle.plot, epanechnikov.plot,
@@ -135,7 +140,7 @@ ggarrange(gauss.plot, exp.plot,
 dev.off() 
 
 png(filename = "Plots/intrinsic_variability_simulation_model1.png",
-    width = 2*png.width, height = png.height)
+    width = 2*png.width, height = png.height, res = png.res)
 
 ggarrange(gauss.plot, exp.plot, epanechnikov.plot,
           ncol=3, nrow=1, common.legend = TRUE, legend="right") 
@@ -181,7 +186,6 @@ gauss.plot <- ggplot(data = gauss.frame, aes(x = h, y = total.variation, color =
   geom_line() + geom_errorbar(aes(ymin=total.variation-3*total.variation.sd, ymax=total.variation+3*total.variation.sd), 
                               width=.2,position=position_dodge(0.05)) + ggtitle("Gaussian Kernel") + 
   ylab("Total Variation") + 
-  geom_vline(xintercept = h.model2) + 
   theme(axis.text.x = element_text( size = axis.ticks.size),
         axis.text.y = element_text( size = axis.ticks.size),  
         axis.title.x = element_text( size = axis.size),
@@ -198,6 +202,7 @@ exp.plot <- ggplot(data = exp.frame, aes(x = h, y = total.variation, color = mu,
   geom_line() + geom_errorbar(aes(ymin=total.variation-3*total.variation.sd, ymax=total.variation+3*total.variation.sd), 
                               width=.2,position=position_dodge(0.05)) + ggtitle("Laplace Kernel") + 
   ylab("Total Variation") + 
+  geom_vline(xintercept = h.model2) + 
   theme(axis.text.x = element_text( size = axis.ticks.size),
         axis.text.y = element_text( size = axis.ticks.size),  
         axis.title.x = element_text( size = axis.size),
@@ -245,7 +250,7 @@ epanechnikov.plot <- ggplot(data = epanechnikov.frame, aes(x = h, y = total.vari
 
 
 png(filename = "Plots/intrinsic_variability_simulation_model2_large.png",
-    width = png.width, height = png.height)
+    width = png.width, height = png.height, res = png.res)
 
 ggarrange(gauss.plot, exp.plot, 
           triangle.plot, epanechnikov.plot,
@@ -255,7 +260,7 @@ ggarrange(gauss.plot, exp.plot,
 dev.off() 
 
 png(filename = "Plots/intrinsic_variability_simulation_model2.png",
-    width = 2*png.width, height = png.height)
+    width = 2*png.width, height = png.height, res = png.res)
 
 ggarrange(gauss.plot, exp.plot, epanechnikov.plot,
           ncol=3, nrow=1, common.legend = TRUE, legend="right") 
@@ -303,7 +308,7 @@ print(paste0("Optimal Mu Value: ", mu.set.long[which.min(smooth.model1.mean)]))
 
 
 png(filename = "Plots/smoothing_selection_simulation_model1.png",
-    width = png.width, height = png.height)
+    width = png.width, height = png.height, res = png.res)
 
 smoothing.model1.plot
 
@@ -344,11 +349,11 @@ smoothing.model2.plot
 
 
 print(paste0("Optimal Mu Value: ", mu.set.long[which.min(smooth.model2.mean)]))
-# 0.0193
+# 0.0139
 
 
 png(filename = "Plots/smoothing_selection_simulation_model2.png",
-    width = png.width, height = png.height)
+    width = png.width, height = png.height, res = png.res)
 
 smoothing.model2.plot
 
@@ -391,8 +396,8 @@ exp.frame <- data.frame(h = hs, mu = mus, cross.entropy = c(as.vector(conversion
 
 
 #Narrowing Colour Choices 
-gauss.frame <- gauss.frame[gauss.frame$mu %in% c("0","0.0037", "0.0193", "0.0761","0.3","unregularized"), ]
-exp.frame <- exp.frame[exp.frame$mu %in% c("0","0.0037", "0.0193", "0.0761","0.3","unregularized"), ]
+gauss.frame <- gauss.frame[gauss.frame$mu %in% c("0","0.0037", "0.0139", "0.0761","0.3","unregularized"), ]
+exp.frame <- exp.frame[exp.frame$mu %in% c("0","0.0037", "0.0139", "0.0761","0.3","unregularized"), ]
 
 
 gauss.frame$mu <- factor(gauss.frame$mu)
@@ -451,7 +456,7 @@ exp.plot <- ggplot(data = exp.frame, aes(x = h, y = cross.entropy, color = mu, g
 
 
 png(filename = "Plots/conversion_simulation.png",
-    width = 1.5*png.width, height = png.height)
+    width = 1.5*png.width, height = png.height, res = png.res)
 
 
 
@@ -507,20 +512,20 @@ for(i in 1:n.sims.feasibility){
 }
 
 
-gauss.frame.1.long <- gauss.frame.1 %>% gather(bandwidth, p.value)
-exp.frame.1.long <- exp.frame.1 %>% gather(bandwidth, p.value)
-triangle.frame.1.long <- triangle.frame.1 %>% gather(bandwidth, p.value)
-epanechnikov.frame.1.long <- epanechnikov.frame.1 %>% gather(bandwidth, p.value)
+gauss.frame.1.long <- gauss.frame.1 %>% tidyr::gather(bandwidth, p.value)
+exp.frame.1.long <- exp.frame.1 %>% tidyr::gather(bandwidth, p.value)
+triangle.frame.1.long <- triangle.frame.1 %>% tidyr::gather(bandwidth, p.value)
+epanechnikov.frame.1.long <- epanechnikov.frame.1 %>% tidyr::gather(bandwidth, p.value)
 
 gauss.frame.1.long$bandwidth <- factor(gauss.frame.1.long$bandwidth, levels = h.set.feasibility)
 exp.frame.1.long$bandwidth <- factor(exp.frame.1.long$bandwidth, levels = h.set.feasibility)
 triangle.frame.1.long$bandwidth <- factor(triangle.frame.1.long$bandwidth, levels = h.set.feasibility)
 epanechnikov.frame.1.long$bandwidth <- factor(epanechnikov.frame.1.long$bandwidth, levels = h.set.feasibility)
 
-gauss.frame.2.long <- gauss.frame.2 %>% gather(bandwidth, p.value)
-exp.frame.2.long <- exp.frame.2 %>% gather(bandwidth, p.value)
-triangle.frame.2.long <- triangle.frame.2 %>% gather(bandwidth, p.value)
-epanechnikov.frame.2.long <- epanechnikov.frame.2 %>% gather(bandwidth, p.value)
+gauss.frame.2.long <- gauss.frame.2 %>% tidyr::gather(bandwidth, p.value)
+exp.frame.2.long <- exp.frame.2 %>% tidyr::gather(bandwidth, p.value)
+triangle.frame.2.long <- triangle.frame.2 %>% tidyr::gather(bandwidth, p.value)
+epanechnikov.frame.2.long <- epanechnikov.frame.2 %>% tidyr::gather(bandwidth, p.value)
 
 gauss.frame.2.long$bandwidth <- factor(gauss.frame.2.long$bandwidth, levels = h.set.feasibility)
 exp.frame.2.long$bandwidth <- factor(exp.frame.2.long$bandwidth, levels = h.set.feasibility)
@@ -639,7 +644,7 @@ grid.arrange(arrangeGrob(p.gauss.2, p.exp.2, ncol = 2),
 
 
 png(filename = "Plots/first_order_feasibililty_simulations_large.png",
-    width = png.width, height = png.height)
+    width = png.width, height = png.height, res = png.res)
 
 ggarrange(p.gauss.1, p.exp.1, p.triangle.1, 
           p.epanechnikov.1, nrow = 2, ncol = 2, 
@@ -649,7 +654,7 @@ ggarrange(p.gauss.1, p.exp.1, p.triangle.1,
 dev.off() 
 
 png(filename = "Plots/first_order_feasibililty_simulations.png",
-    width = 2*png.width, height = png.height)
+    width = 2*png.width, height = png.height, res = png.res)
 
 ggarrange(p.gauss.1, p.exp.1, p.epanechnikov.1, nrow = 1, ncol = 3, 
           common.legend = TRUE, legend="right")   
@@ -658,7 +663,7 @@ ggarrange(p.gauss.1, p.exp.1, p.epanechnikov.1, nrow = 1, ncol = 3,
 dev.off() 
 
 png(filename = "Plots/second_order_feasibililty_simulations_large.png",
-    width = png.width, height = png.height)
+    width = png.width, height = png.height, res = png.res)
 
 ggarrange(p.gauss.2, p.exp.2, p.triangle.2, 
           p.epanechnikov.2, nrow = 2, ncol = 2, 
@@ -668,7 +673,7 @@ ggarrange(p.gauss.2, p.exp.2, p.triangle.2,
 dev.off() 
 
 png(filename = "Plots/second_order_feasibililty_simulations.png",
-    width = 2*png.width, height = png.height)
+    width = 2*png.width, height = png.height, res = png.res)
 
 ggarrange(p.gauss.2, p.exp.2, p.epanechnikov.2, nrow = 1, ncol = 3, 
           common.legend = TRUE, legend="right")   
@@ -715,45 +720,45 @@ y.max.like = max(c(speed.test.like.mean[,]))
 npem.speed.plot <- ggplot(data = npem.speed.frame, aes(x = log(h), y = time, color = mu, group = mu)) + 
   geom_line() + geom_errorbar(aes(ymin=time-2*sd, ymax=time+2*sd), width=.2,
                               position=position_dodge(0.05)) + ggtitle("NPEM Speed") + ylab("Fit Time (s)") + 
-  theme(axis.text.x = element_text( size = axis.ticks.size),
-        axis.text.y = element_text( size = axis.ticks.size),  
-        axis.title.x = element_text( size = axis.size),
-        axis.title.y = element_text( size = axis.size),
-        title = element_text( size = title.size),
+  theme(axis.text.x = element_text( size = small.axis.ticks.size),
+        axis.text.y = element_text( size = small.axis.ticks.size),  
+        axis.title.x = element_text( size = small.axis.size),
+        axis.title.y = element_text( size = small.axis.size),
+        title = element_text( size = small.title.size),
         legend.key.size = unit(1, 'cm'), #change legend key size
         legend.key.height = unit(1, 'cm'), #change legend key height
         legend.key.width = unit(1, 'cm'), #change legend key width
-        legend.title = element_text(size=axis.size), #change legend title font size
-        legend.text = element_text(size=axis.ticks.size))  
+        legend.title = element_text(size=small.axis.size), #change legend title font size
+        legend.text = element_text(size=small.axis.ticks.size))  
 
 gp.speed.plot <- ggplot(data = gp.speed.frame, aes(x = log(h), y = time, color = mu, group = mu)) + 
   geom_line() + geom_errorbar(aes(ymin=time-2*sd, ymax=time+2*sd), width=.2,
                               position=position_dodge(0.05)) + ggtitle("GP Speed") + ylab("Fit Time (s)") + 
-  theme(axis.text.x = element_text( size = axis.ticks.size),
-        axis.text.y = element_text( size = axis.ticks.size),  
-        axis.title.x = element_text( size = axis.size),
-        axis.title.y = element_text( size = axis.size),
-        title = element_text( size = title.size),
+  theme(axis.text.x = element_text( size = small.axis.ticks.size),
+        axis.text.y = element_text( size = small.axis.ticks.size),  
+        axis.title.x = element_text( size = small.axis.size),
+        axis.title.y = element_text( size = small.axis.size),
+        title = element_text( size = small.title.size),
         legend.key.size = unit(1, 'cm'), #change legend key size
         legend.key.height = unit(1, 'cm'), #change legend key height
         legend.key.width = unit(1, 'cm'), #change legend key width
-        legend.title = element_text(size=axis.size), #change legend title font size
-        legend.text = element_text(size=axis.ticks.size))  
+        legend.title = element_text(size=small.axis.size), #change legend title font size
+        legend.text = element_text(size=small.axis.ticks.size))  
 
 
 diff.likelihood.plot <- ggplot(data = diff.likelihood.frame, aes(x = log(h), y = likelihood, color = mu, group = mu)) + 
   geom_line() + geom_errorbar(aes(ymin=likelihood-2*sd, ymax=likelihood+2*sd), width=.2,
                               position=position_dodge(0.05)) + ggtitle("Log-Likelihood Difference (NPEM - GP)/|NPEM|") + 
-  theme(axis.text.x = element_text( size = axis.ticks.size),
-        axis.text.y = element_text( size = axis.ticks.size),  
-        axis.title.x = element_text( size = axis.size),
-        axis.title.y = element_text( size = axis.size),
-        title = element_text( size = title.size),
+  theme(axis.text.x = element_text( size = small.axis.ticks.size),
+        axis.text.y = element_text( size = small.axis.ticks.size),  
+        axis.title.x = element_text( size = small.axis.size),
+        axis.title.y = element_text( size = small.axis.size),
+        title = element_text( size = small.title.size),
         legend.key.size = unit(1, 'cm'), #change legend key size
         legend.key.height = unit(1, 'cm'), #change legend key height
         legend.key.width = unit(1, 'cm'), #change legend key width
-        legend.title = element_text(size=axis.size), #change legend title font size
-        legend.text = element_text(size=axis.ticks.size))  
+        legend.title = element_text(size=small.axis.size), #change legend title font size
+        legend.text = element_text(size=small.axis.ticks.size))  
 
 
 
@@ -763,7 +768,7 @@ grid.arrange(arrangeGrob(npem.speed.plot, gp.speed.plot, ncol = 2),
              nrow = 2)   
 
 png(filename = "plots/speed_test_simulations.png",
-    width = png.width, height = png.height)
+    width = png.width, height = png.height, res = png.res)
 
 
 grid.arrange(arrangeGrob(npem.speed.plot, gp.speed.plot, ncol = 2),                             
@@ -1261,7 +1266,7 @@ p.cdf.0.4 <- ggplot(data = cdf.mu0.4, aes(x = y,
 
 
 png(filename = "Plots/Example Regularization.png",
-    width = (1.5)*png.width, height = png.height)
+    width = (1.5)*png.width, height = png.height, res = png.res)
 
 
 ggarrange(p.obs.0, p.dens.0, p.cdf.0,

@@ -109,6 +109,10 @@ tests.y1.train <- categorize(tests.y1)
 tests.z1.train <- categorize(tests.z1)
 
 
+colnames(tests.y1.train)[1] <- "y"
+colnames(tests.z1.train)[1] <- "z"
+
+
 write.csv(tests.y2.val,"Data/NACCMMSE_validation.csv", row.names = F)
 write.csv(tests.z2.val,"Data/MOCATOTS_validation.csv", row.names = F)
 
