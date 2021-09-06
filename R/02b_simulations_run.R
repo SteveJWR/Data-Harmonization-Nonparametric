@@ -23,53 +23,53 @@ timeout = 5000
 
 ##### ----- intrinsic variability simulations model 1 -----
 
-# intrinsic.variability.model1.simulation.results.array <- array(NA, dim = c(n.sims, length(h.set), length(ker.set), length(mu.set)))
-# 
-# 
-# intrinsic.variability.model1.simulation.results <- simulate_experiment(RUN_PARALLEL, 
-#                                                                        simulation_intrinsic_variability_model1, 
-#                                                                        n.sims)
-# 
-# 
-# for(i in 1:n.sims){
-#   for(q in 1:nrow(hyper.param.idx)){
-#     j = hyper.param.idx[q,1]
-#     k = hyper.param.idx[q,2]
-#     l = hyper.param.idx[q,3]
-#     intrinsic.variability.model1.simulation.results.array[i,j,k,l] <- intrinsic.variability.model1.simulation.results[[i]][q]
-#   }
-# }
-# 
-# saveRDS(intrinsic.variability.model1.simulation.results.array,paste0("Data/results/intrinsic_variability_simulation_model1.rds"))
-# print("intrinsic variability simulations model 1 complete")
+intrinsic.variability.model1.simulation.results.array <- array(NA, dim = c(n.sims, length(h.set), length(ker.set), length(mu.set)))
+
+
+intrinsic.variability.model1.simulation.results <- simulate_experiment(RUN_PARALLEL,
+                                                                       simulation_intrinsic_variability_model1,
+                                                                       n.sims)
+
+
+for(i in 1:n.sims){
+  for(q in 1:nrow(hyper.param.idx)){
+    j = hyper.param.idx[q,1]
+    k = hyper.param.idx[q,2]
+    l = hyper.param.idx[q,3]
+    intrinsic.variability.model1.simulation.results.array[i,j,k,l] <- intrinsic.variability.model1.simulation.results[[i]][q]
+  }
+}
+
+saveRDS(intrinsic.variability.model1.simulation.results.array,paste0("Data/results/intrinsic_variability_simulation_model1.rds"))
+print("intrinsic variability simulations model 1 complete")
 
 
 
 
 ##### ----- intrinsic variability simulations model 2 -----
 
-# intrinsic.variability.model2.simulation.results.array <- array(NA, dim = c(n.sims, length(h.set), length(ker.set), length(mu.set)))
-# 
-# 
-# intrinsic.variability.model2.simulation.results <- simulate_experiment(RUN_PARALLEL, 
-#                                                                        simulation_intrinsic_variability_model2, 
-#                                                                        n.sims)
-#           
-# 
-# for(i in 1:n.sims){
-#   for(q in 1:nrow(hyper.param.idx)){
-#     j = hyper.param.idx[q,1]
-#     k = hyper.param.idx[q,2]
-#     l = hyper.param.idx[q,3]
-#     intrinsic.variability.model2.simulation.results.array[i,j,k,l] <- intrinsic.variability.model2.simulation.results[[i]][q]
-#   }
-# }
-# 
-# 
-# 
-# saveRDS(intrinsic.variability.model2.simulation.results.array,paste0("Data/results/intrinsic_variability_simulation_model2.rds"))
-# 
-# print("intrinsic variability simulations model 2 complete")
+intrinsic.variability.model2.simulation.results.array <- array(NA, dim = c(n.sims, length(h.set), length(ker.set), length(mu.set)))
+
+
+intrinsic.variability.model2.simulation.results <- simulate_experiment(RUN_PARALLEL,
+                                                                       simulation_intrinsic_variability_model2,
+                                                                       n.sims)
+
+
+for(i in 1:n.sims){
+  for(q in 1:nrow(hyper.param.idx)){
+    j = hyper.param.idx[q,1]
+    k = hyper.param.idx[q,2]
+    l = hyper.param.idx[q,3]
+    intrinsic.variability.model2.simulation.results.array[i,j,k,l] <- intrinsic.variability.model2.simulation.results[[i]][q]
+  }
+}
+
+
+
+saveRDS(intrinsic.variability.model2.simulation.results.array,paste0("Data/results/intrinsic_variability_simulation_model2.rds"))
+
+print("intrinsic variability simulations model 2 complete")
 
 
 
@@ -79,46 +79,46 @@ timeout = 5000
 ## --------    Model 1   --------
 
 
-# 
-# smoothing.selection.model1.simulation.results.array <- array(NA, dim = c(n.sims, length(mu.set.long)))
-# 
-# smoothing.selection.model1.simulation.results <- simulate_experiment(RUN_PARALLEL, 
-#                                                                      simulation_smoothing_selection_model1, 
-#                                                                      n.sims)
-# 
-# for(i in 1:n.sims){
-#   for(q in 1:length(mu.set.long)){
-#     smoothing.selection.model1.simulation.results.array[i,q] <- smoothing.selection.model1.simulation.results[[i]][q]
-#   }
-# }
-# 
-# 
-# 
-# saveRDS(smoothing.selection.model1.simulation.results.array,paste0("Data/results/smoothing_selection_simulation_model1.rds"))
-# 
-# 
-# print("mu selection simulations model 1 complete")
+
+smoothing.selection.model1.simulation.results.array <- array(NA, dim = c(n.sims, length(mu.set.long)))
+
+smoothing.selection.model1.simulation.results <- simulate_experiment(RUN_PARALLEL,
+                                                                     simulation_smoothing_selection_model1,
+                                                                     n.sims)
+
+for(i in 1:n.sims){
+  for(q in 1:length(mu.set.long)){
+    smoothing.selection.model1.simulation.results.array[i,q] <- smoothing.selection.model1.simulation.results[[i]][q]
+  }
+}
+
+
+
+saveRDS(smoothing.selection.model1.simulation.results.array,paste0("Data/results/smoothing_selection_simulation_model1.rds"))
+
+
+print("mu selection simulations model 1 complete")
 
 
 ## --------    Model 2   --------
 
-# 
-# smoothing.selection.model2.simulation.results.array <- array(NA, dim = c(n.sims, length(mu.set.long)))
-# 
-# smoothing.selection.model2.simulation.results <- simulate_experiment(RUN_PARALLEL, 
-#                                                                      simulation_smoothing_selection_model2, 
-#                                                                      n.sims)
-# 
-# for(i in 1:n.sims){
-#   for(q in 1:length(mu.set.long)){
-#     smoothing.selection.model2.simulation.results.array[i,q] <- smoothing.selection.model2.simulation.results[[i]][q]
-#   }
-# }
-# 
-# saveRDS(smoothing.selection.model2.simulation.results.array,paste0("Data/results/smoothing_selection_simulation_model2.rds"))
-# 
-# 
-# print("mu selection simulations model 2 complete")
+
+smoothing.selection.model2.simulation.results.array <- array(NA, dim = c(n.sims, length(mu.set.long)))
+
+smoothing.selection.model2.simulation.results <- simulate_experiment(RUN_PARALLEL,
+                                                                     simulation_smoothing_selection_model2,
+                                                                     n.sims)
+
+for(i in 1:n.sims){
+  for(q in 1:length(mu.set.long)){
+    smoothing.selection.model2.simulation.results.array[i,q] <- smoothing.selection.model2.simulation.results[[i]][q]
+  }
+}
+
+saveRDS(smoothing.selection.model2.simulation.results.array,paste0("Data/results/smoothing_selection_simulation_model2.rds"))
+
+
+print("mu selection simulations model 2 complete")
 
 
 
