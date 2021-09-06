@@ -26,8 +26,8 @@ small.title.size = 12
 small.axis.ticks.size = 8 
 small.axis.size = 10 
 
-extra.small.title.size = 10
-extra.small.axis.ticks.size = 6
+extra.small.title.size = 8
+extra.small.axis.ticks.size = 8
 extra.small.axis.size = 8
 
 
@@ -382,13 +382,12 @@ conversion.ce.se.ml <- conversion.ce.ml$se_results
 
 
 
-P5 <- brewer.pal(6, "Blues")
-P5 <- P5[2:6]
-P6 <- c(P5,"red")
-mus <- round(rep(mu.set.conversion, each = length(h.set)), 4)
+P6 <- brewer.pal(7, "Blues")
+P7 <- c(P6[2:7],"red")
+mus <- round(rep(mu.set.conversion, each = length(h.set.conversion)), 4)
 mus <- as.character(mus)
-mus <- c(mus, rep("unregularized", length(h.set)))
-hs <- rep(h.set, times = length(mu.set.conversion) + 1)
+mus <- c(mus, rep("unregularized", length(h.set.conversion)))
+hs <- rep(h.set.conversion, times = length(mu.set.conversion) + 1)
 
 gauss.frame <- data.frame(h = hs, mu = mus, cross.entropy = c(as.vector(conversion.ce.mean[,1,]),as.vector(conversion.ce.mean.ml[,1])), cross.entropy.sd = c(as.vector(conversion.ce.se[,1,]),as.vector(conversion.ce.se.ml[,1])) )
 exp.frame <- data.frame(h = hs, mu = mus, cross.entropy = c(as.vector(conversion.ce.mean[,2,]),as.vector(conversion.ce.mean.ml[,2])), cross.entropy.sd = c(as.vector(conversion.ce.se[,2,]),as.vector(conversion.ce.se.ml[,2])))
@@ -396,8 +395,8 @@ exp.frame <- data.frame(h = hs, mu = mus, cross.entropy = c(as.vector(conversion
 
 
 #Narrowing Colour Choices 
-gauss.frame <- gauss.frame[gauss.frame$mu %in% c("0","0.0037", "0.0139", "0.0761","0.3","unregularized"), ]
-exp.frame <- exp.frame[exp.frame$mu %in% c("0","0.0037", "0.0139", "0.0761","0.3","unregularized"), ]
+gauss.frame <- gauss.frame[gauss.frame$mu %in% c("0","0.0037", "0.0139", "0.0193", "0.0761","0.3","unregularized"), ]
+exp.frame <- exp.frame[exp.frame$mu %in% c("0","0.0037", "0.0139", "0.0193", "0.0761","0.3","unregularized"), ]
 
 
 gauss.frame$mu <- factor(gauss.frame$mu)
@@ -407,21 +406,26 @@ exp.frame$mu <- factor(exp.frame$mu)
 
 # model selection index, exp frame 31 
 gauss.plot <- ggplot(data = gauss.frame, aes(x = h, y = cross.entropy, color = mu, group = mu)) + 
-  geom_line() + geom_errorbar(aes(ymin=cross.entropy-3*cross.entropy.sd, ymax=cross.entropy+3*cross.entropy.sd), 
-                              width=.2, position=position_dodge(0.0)) + ggtitle("Gaussian Kernel") + 
-  coord_cartesian(xlim = c(0,4.1), ylim = c(2.5, 3)) + ylab("Population Cross Entropy")  
+  geom_line() + #geom_errorbar(aes(ymin=cross.entropy-3*cross.entropy.sd, ymax=cross.entropy+3*cross.entropy.sd), 
+                #              width=.2, position=position_dodge(0.0)) + 
+  ggtitle("Gaussian Kernel") + 
+  coord_cartesian(xlim = c(0,4.1), ylim = c(2.8, 3.3)) + ylab("Population Cross Entropy")  
 
 exp.plot <- ggplot(data = exp.frame, aes(x = h, y = cross.entropy, color = mu, group = mu)) + 
-  geom_line() + geom_errorbar(aes(ymin=cross.entropy-3*cross.entropy.sd, ymax=cross.entropy+3*cross.entropy.sd), 
-                              width=.2, position=position_dodge(0.0)) + ggtitle("Laplace Kernel") + 
-  coord_cartesian(xlim = c(0,4.1), ylim = c(2.5, 3)) + ylab("Population Cross Entropy")  + 
-  annotate("point", x = exp.frame$h[17], y = exp.frame$cross.entropy[17], colour = "blue", shape = "x", size = 8) #+ geom_point(size = 0.6) +  geom_point(aes(x = exp.frame$h[31], y = exp.frame$cross.entropy[31], shape = "+", color = "black"))
+  geom_line() + #geom_errorbar(aes(ymin=cross.entropy-3*cross.entropy.sd, ymax=cross.entropy+3*cross.entropy.sd), 
+                #              width=.2, position=position_dodge(0.0)) + 
+  ggtitle("Laplace Kernel") + 
+  coord_cartesian(xlim = c(0,4.1), ylim = c(2.8, 3.3)) + ylab("Population Cross Entropy")  + 
+  annotate("point", x = exp.frame$h[30], y = exp.frame$cross.entropy[30], colour = "blue", shape = "x", size = 8) #+ geom_point(size = 0.6) +  geom_point(aes(x = exp.frame$h[31], y = exp.frame$cross.entropy[31], shape = "+", color = "black"))
 
 
 gauss.plot <- ggplot(data = gauss.frame, aes(x = h, y = cross.entropy, color = mu, group = mu)) + 
-  geom_line() + geom_errorbar(aes(ymin=cross.entropy-2*cross.entropy.sd, ymax=cross.entropy+2*cross.entropy.sd), 
-                              width=.2, position=position_dodge(0.0)) + ggtitle("Gaussian Kernel")  + coord_cartesian(xlim = c(0,4.1), ylim = c(2.45, 3)) + 
-  ylab("Population Cross Entropy") + scale_color_manual(values= as.vector(P6)) + 
+  geom_line() + 
+  geom_errorbar(aes(ymin=cross.entropy-2*cross.entropy.sd, 
+                    ymax=cross.entropy+2*cross.entropy.sd),
+                width=.2, position=position_dodge(0.0)) +
+  ggtitle("Gaussian Kernel")  + coord_cartesian(xlim = c(0,4.1), ylim = c(2.2, 3.3)) + 
+  ylab("Population Cross Entropy") + scale_color_manual(values= as.vector(P7)) + 
   theme(axis.text.x = element_text( size = axis.ticks.size),
         axis.text.y = element_text( size = axis.ticks.size),  
         axis.title.x = element_text( size = axis.size),
@@ -434,11 +438,14 @@ gauss.plot <- ggplot(data = gauss.frame, aes(x = h, y = cross.entropy, color = m
         legend.text = element_text(size=axis.ticks.size))  
 
 exp.plot <- ggplot(data = exp.frame, aes(x = h, y = cross.entropy, color = mu, group = mu)) + 
-  geom_line() + geom_errorbar(aes(ymin=cross.entropy-2*cross.entropy.sd, ymax=cross.entropy+2*cross.entropy.sd), 
-                              width=.2, position=position_dodge(0.0)) + ggtitle("Laplace Kernel") + coord_cartesian(xlim = c(0,4.1), ylim = c(2.45, 3)) + 
+  geom_line() + 
+  geom_errorbar(aes(ymin=cross.entropy-2*cross.entropy.sd, 
+                    ymax=cross.entropy+2*cross.entropy.sd),
+                width=.2, position=position_dodge(0.0)) +
+  ggtitle("Laplace Kernel") + coord_cartesian(xlim = c(0,4.1), ylim = c(2.2, 3.3)) + 
   ylab("Population Cross Entropy")  + 
-  annotate("point", x = exp.frame$h[17], y = exp.frame$cross.entropy[17], colour = "blue", shape = "x", size = 8) + 
-  scale_color_manual(values= as.vector(P6)) + 
+  annotate("point", x = exp.frame$h[30], y = exp.frame$cross.entropy[30], colour = "blue", shape = "x", size = 8) + 
+  scale_color_manual(values= as.vector(P7)) + 
   theme(axis.text.x = element_text( size = axis.ticks.size),
         axis.text.y = element_text( size = axis.ticks.size),  
         axis.title.x = element_text( size = axis.size),
@@ -457,7 +464,6 @@ exp.plot <- ggplot(data = exp.frame, aes(x = h, y = cross.entropy, color = mu, g
 
 png(filename = "Plots/conversion_simulation.png",
     width = 1.5*png.width, height = png.height, res = png.res)
-
 
 
 ggarrange(gauss.plot, exp.plot,
@@ -962,16 +968,16 @@ p.obs.0 <- ggplot(data = obs.mu0, aes(x = y,
                                       color = labels)) + 
   geom_point() + scale_colour_manual(values = c("red", "blue", "black")) + 
   ggtitle(paste0("Observed Score Estimate \u00b5 = ", 0)) + 
-  theme(axis.text.x = element_text( size = small.axis.ticks.size),
-        axis.text.y = element_text( size = small.axis.ticks.size),  
-        axis.title.x = element_text( size = small.axis.size),
-        axis.title.y = element_text( size = small.axis.size),
-        title = element_text( size = small.title.size),
+  theme(axis.text.x = element_text( size = extra.small.axis.ticks.size),
+        axis.text.y = element_text( size = extra.small.axis.ticks.size),  
+        axis.title.x = element_text( size = extra.small.axis.size),
+        axis.title.y = element_text( size = extra.small.axis.size),
+        title = element_text( size = extra.small.title.size),
         legend.key.size = unit(1, 'cm'), #change legend key size
         legend.key.height = unit(1, 'cm'), #change legend key height
         legend.key.width = unit(1, 'cm'), #change legend key width
-        legend.title = element_text(size=small.axis.size), #change legend title font size
-        legend.text = element_text(size=small.axis.ticks.size)) 
+        legend.title = element_text(size=extra.small.axis.size), #change legend title font size
+        legend.text = element_text(size=extra.small.axis.ticks.size)) 
 
 
 p.obs.0.001 <- ggplot(data = obs.mu0.001, aes(x = y, 
@@ -980,16 +986,16 @@ p.obs.0.001 <- ggplot(data = obs.mu0.001, aes(x = y,
                                               color = labels)) + 
   geom_point() + scale_colour_manual(values = c("red", "blue", "black")) + 
   ggtitle(paste0("Observed Score Estimate \u00b5 = ", 0.001)) + 
-  theme(axis.text.x = element_text( size = small.axis.ticks.size),
-        axis.text.y = element_text( size = small.axis.ticks.size),  
-        axis.title.x = element_text( size = small.axis.size),
-        axis.title.y = element_text( size = small.axis.size),
-        title = element_text( size = small.title.size),
+  theme(axis.text.x = element_text( size = extra.small.axis.ticks.size),
+        axis.text.y = element_text( size = extra.small.axis.ticks.size),  
+        axis.title.x = element_text( size = extra.small.axis.size),
+        axis.title.y = element_text( size = extra.small.axis.size),
+        title = element_text( size = extra.small.title.size),
         legend.key.size = unit(1, 'cm'), #change legend key size
         legend.key.height = unit(1, 'cm'), #change legend key height
         legend.key.width = unit(1, 'cm'), #change legend key width
-        legend.title = element_text(size=small.axis.size), #change legend title font size
-        legend.text = element_text(size=small.axis.ticks.size)) 
+        legend.title = element_text(size=extra.small.axis.size), #change legend title font size
+        legend.text = element_text(size=extra.small.axis.ticks.size)) 
 
 
 
@@ -999,16 +1005,16 @@ p.obs.0.01 <- ggplot(data = obs.mu0.01, aes(x = y,
                                             color = labels)) + 
   geom_point() + scale_colour_manual(values = c("red", "blue", "black")) + 
   ggtitle(paste0("Observed Score Estimate \u00b5 = ", 0.01)) + 
-  theme(axis.text.x = element_text( size = small.axis.ticks.size),
-        axis.text.y = element_text( size = small.axis.ticks.size),  
-        axis.title.x = element_text( size = small.axis.size),
-        axis.title.y = element_text( size = small.axis.size),
-        title = element_text( size = small.title.size),
+  theme(axis.text.x = element_text( size = extra.small.axis.ticks.size),
+        axis.text.y = element_text( size = extra.small.axis.ticks.size),  
+        axis.title.x = element_text( size = extra.small.axis.size),
+        axis.title.y = element_text( size = extra.small.axis.size),
+        title = element_text( size = extra.small.title.size),
         legend.key.size = unit(1, 'cm'), #change legend key size
         legend.key.height = unit(1, 'cm'), #change legend key height
         legend.key.width = unit(1, 'cm'), #change legend key width
-        legend.title = element_text(size=small.axis.size), #change legend title font size
-        legend.text = element_text(size=small.axis.ticks.size)) 
+        legend.title = element_text(size=extra.small.axis.size), #change legend title font size
+        legend.text = element_text(size=extra.small.axis.ticks.size)) 
 
 
 p.obs.0.1 <- ggplot(data = obs.mu0.1, aes(x = y, 
@@ -1017,16 +1023,16 @@ p.obs.0.1 <- ggplot(data = obs.mu0.1, aes(x = y,
                                           color = labels)) + 
   geom_point() + scale_colour_manual(values = c("red", "blue", "black")) + 
   ggtitle(paste0("Observed Score Estimate \u00b5 = ", 0.1)) + 
-  theme(axis.text.x = element_text( size = small.axis.ticks.size),
-        axis.text.y = element_text( size = small.axis.ticks.size),  
-        axis.title.x = element_text( size = small.axis.size),
-        axis.title.y = element_text( size = small.axis.size),
-        title = element_text( size = small.title.size),
+  theme(axis.text.x = element_text( size = extra.small.axis.ticks.size),
+        axis.text.y = element_text( size = extra.small.axis.ticks.size),  
+        axis.title.x = element_text( size = extra.small.axis.size),
+        axis.title.y = element_text( size = extra.small.axis.size),
+        title = element_text( size = extra.small.title.size),
         legend.key.size = unit(1, 'cm'), #change legend key size
         legend.key.height = unit(1, 'cm'), #change legend key height
         legend.key.width = unit(1, 'cm'), #change legend key width
-        legend.title = element_text(size=small.axis.size), #change legend title font size
-        legend.text = element_text(size=small.axis.ticks.size)) 
+        legend.title = element_text(size=extra.small.axis.size), #change legend title font size
+        legend.text = element_text(size=extra.small.axis.ticks.size)) 
 
 
 p.obs.0.4 <- ggplot(data = obs.mu0.4, aes(x = y, 
@@ -1035,16 +1041,16 @@ p.obs.0.4 <- ggplot(data = obs.mu0.4, aes(x = y,
                                           color = labels)) + 
   geom_point() + scale_colour_manual(values = c("red", "blue", "black")) + 
   ggtitle(paste0("Observed Score Estimate \u00b5 = ", 0.4)) + 
-  theme(axis.text.x = element_text( size = small.axis.ticks.size),
-        axis.text.y = element_text( size = small.axis.ticks.size),  
-        axis.title.x = element_text( size = small.axis.size),
-        axis.title.y = element_text( size = small.axis.size),
-        title = element_text( size = small.title.size),
+  theme(axis.text.x = element_text( size = extra.small.axis.ticks.size),
+        axis.text.y = element_text( size = extra.small.axis.ticks.size),  
+        axis.title.x = element_text( size = extra.small.axis.size),
+        axis.title.y = element_text( size = extra.small.axis.size),
+        title = element_text( size = extra.small.title.size),
         legend.key.size = unit(1, 'cm'), #change legend key size
         legend.key.height = unit(1, 'cm'), #change legend key height
         legend.key.width = unit(1, 'cm'), #change legend key width
-        legend.title = element_text(size=small.axis.size), #change legend title font size
-        legend.text = element_text(size=small.axis.ticks.size)) 
+        legend.title = element_text(size=extra.small.axis.size), #change legend title font size
+        legend.text = element_text(size=extra.small.axis.ticks.size)) 
 
 
 
@@ -1058,16 +1064,16 @@ p.dens.0 <- ggplot(data = dens.mu0, aes(x = y,
   geom_line() + scale_colour_manual(values = c("blue", "black")) + 
   ggtitle(paste0("Latent Density Estimate \u00b5 = ", 0)) + 
   xlab("Gamma") + ylab("Density") + 
-  theme(axis.text.x = element_text( size = small.axis.ticks.size),
-        axis.text.y = element_text( size = small.axis.ticks.size),  
-        axis.title.x = element_text( size = small.axis.size),
-        axis.title.y = element_text( size = small.axis.size),
-        title = element_text( size = small.title.size),
+  theme(axis.text.x = element_text( size = extra.small.axis.ticks.size),
+        axis.text.y = element_text( size = extra.small.axis.ticks.size),  
+        axis.title.x = element_text( size = extra.small.axis.size),
+        axis.title.y = element_text( size = extra.small.axis.size),
+        title = element_text( size = extra.small.title.size),
         legend.key.size = unit(1, 'cm'), #change legend key size
         legend.key.height = unit(1, 'cm'), #change legend key height
         legend.key.width = unit(1, 'cm'), #change legend key width
-        legend.title = element_text(size=small.axis.size), #change legend title font size
-        legend.text = element_text(size=small.axis.ticks.size)) #+ 
+        legend.title = element_text(size=extra.small.axis.size), #change legend title font size
+        legend.text = element_text(size=extra.small.axis.ticks.size)) #+ 
 # labs(col="Density") + annotate(geom="text", x=0.1, y= 500, label=paste0("\u00b5 = ", 0),
 #                                color="blue", size = 6)
 
@@ -1082,16 +1088,16 @@ p.dens.0.001 <- ggplot(data = dens.mu0.001, aes(x = y,
   geom_line() + scale_colour_manual(values = c("blue", "black")) + 
   ggtitle(paste0("Latent Density Estimate \u00b5 = ", 0.001)) + 
   xlab("Gamma") + ylab("Density") + 
-  theme(axis.text.x = element_text( size = small.axis.ticks.size),
-        axis.text.y = element_text( size = small.axis.ticks.size),  
-        axis.title.x = element_text( size = small.axis.size),
-        axis.title.y = element_text( size = small.axis.size),
-        title = element_text( size = small.title.size),
+  theme(axis.text.x = element_text( size = extra.small.axis.ticks.size),
+        axis.text.y = element_text( size = extra.small.axis.ticks.size),  
+        axis.title.x = element_text( size = extra.small.axis.size),
+        axis.title.y = element_text( size = extra.small.axis.size),
+        title = element_text( size = extra.small.title.size),
         legend.key.size = unit(1, 'cm'), #change legend key size
         legend.key.height = unit(1, 'cm'), #change legend key height
         legend.key.width = unit(1, 'cm'), #change legend key width
-        legend.title = element_text(size=small.axis.size), #change legend title font size
-        legend.text = element_text(size=small.axis.ticks.size)) #+ 
+        legend.title = element_text(size=extra.small.axis.size), #change legend title font size
+        legend.text = element_text(size=extra.small.axis.ticks.size)) #+ 
 # labs(col="Density") + annotate(geom="text", x=0.1, y= 45, label=paste0("\u00b5 = ", 0.001),
 #                                color="blue", size = 6)
 
@@ -1106,16 +1112,16 @@ p.dens.0.01 <- ggplot(data = dens.mu0.01, aes(x = y,
   geom_line() + scale_colour_manual(values = c("blue", "black")) + 
   ggtitle(paste0("Latent Density Estimate \u00b5 = ", 0.01)) + 
   xlab("Gamma") + ylab("Density") + 
-  theme(axis.text.x = element_text( size = small.axis.ticks.size),
-        axis.text.y = element_text( size = small.axis.ticks.size),  
-        axis.title.x = element_text( size = small.axis.size),
-        axis.title.y = element_text( size = small.axis.size),
-        title = element_text( size = small.title.size),
+  theme(axis.text.x = element_text( size = extra.small.axis.ticks.size),
+        axis.text.y = element_text( size = extra.small.axis.ticks.size),  
+        axis.title.x = element_text( size = extra.small.axis.size),
+        axis.title.y = element_text( size = extra.small.axis.size),
+        title = element_text( size = extra.small.title.size),
         legend.key.size = unit(1, 'cm'), #change legend key size
         legend.key.height = unit(1, 'cm'), #change legend key height
         legend.key.width = unit(1, 'cm'), #change legend key width
-        legend.title = element_text(size=small.axis.size), #change legend title font size
-        legend.text = element_text(size=small.axis.ticks.size)) #+ 
+        legend.title = element_text(size=extra.small.axis.size), #change legend title font size
+        legend.text = element_text(size=extra.small.axis.ticks.size)) #+ 
 # labs(col="Density") + annotate(geom="text", x=0.1, y= 12, label=paste0("\u00b5 = ", 0.01),
 #                                color="blue", size = 6)
 
@@ -1129,16 +1135,16 @@ p.dens.0.1 <- ggplot(data = dens.mu0.1, aes(x = y,
   geom_line() + scale_colour_manual(values = c("blue", "black")) + 
   ggtitle(paste0("Latent Density Estimate \u00b5 = ", 0.1)) + 
   xlab("Gamma") + ylab("Density") + 
-  theme(axis.text.x = element_text( size = small.axis.ticks.size),
-        axis.text.y = element_text( size = small.axis.ticks.size),  
-        axis.title.x = element_text( size = small.axis.size),
-        axis.title.y = element_text( size = small.axis.size),
-        title = element_text( size = small.title.size),
+  theme(axis.text.x = element_text( size = extra.small.axis.ticks.size),
+        axis.text.y = element_text( size = extra.small.axis.ticks.size),  
+        axis.title.x = element_text( size = extra.small.axis.size),
+        axis.title.y = element_text( size = extra.small.axis.size),
+        title = element_text( size = extra.small.title.size),
         legend.key.size = unit(1, 'cm'), #change legend key size
         legend.key.height = unit(1, 'cm'), #change legend key height
         legend.key.width = unit(1, 'cm'), #change legend key width
-        legend.title = element_text(size=small.axis.size), #change legend title font size
-        legend.text = element_text(size=small.axis.ticks.size)) #+ 
+        legend.title = element_text(size=extra.small.axis.size), #change legend title font size
+        legend.text = element_text(size=extra.small.axis.ticks.size)) #+ 
 # labs(col="Density") + annotate(geom="text", x=0.1, y= 6, label=paste0("\u00b5 = ", 0.1),
 #                                color="blue", size = 6)
 
@@ -1151,16 +1157,16 @@ p.dens.0.4 <- ggplot(data = dens.mu0.4, aes(x = y,
   geom_line() + scale_colour_manual(values = c("blue", "black")) + 
   ggtitle(paste0("Latent Density Estimate \u00b5 = ", 0.4)) + 
   xlab("Gamma") + ylab("Density") + 
-  theme(axis.text.x = element_text( size = small.axis.ticks.size),
-        axis.text.y = element_text( size = small.axis.ticks.size),  
-        axis.title.x = element_text( size = small.axis.size),
-        axis.title.y = element_text( size = small.axis.size),
-        title = element_text( size = small.title.size),
+  theme(axis.text.x = element_text( size = extra.small.axis.ticks.size),
+        axis.text.y = element_text( size = extra.small.axis.ticks.size),  
+        axis.title.x = element_text( size = extra.small.axis.size),
+        axis.title.y = element_text( size = extra.small.axis.size),
+        title = element_text( size = extra.small.title.size),
         legend.key.size = unit(1, 'cm'), #change legend key size
         legend.key.height = unit(1, 'cm'), #change legend key height
         legend.key.width = unit(1, 'cm'), #change legend key width
-        legend.title = element_text(size=small.axis.size), #change legend title font size
-        legend.text = element_text(size=small.axis.ticks.size)) #+ 
+        legend.title = element_text(size=extra.small.axis.size), #change legend title font size
+        legend.text = element_text(size=extra.small.axis.ticks.size)) #+ 
 # labs(col="Density") + annotate(geom="text", x=0.1, y= 4, label=paste0("\u00b5 = ", 0.4),
 #            color="blue", size = 6)
 
@@ -1176,16 +1182,16 @@ p.cdf.0 <- ggplot(data = cdf.mu0, aes(x = y,
                                       color = labels)) + 
   geom_line() + scale_colour_manual(values = c("blue", "black")) + 
   ggtitle(paste0("CDF Estimate \u00b5 = ", 0)) + xlab("Gamma")+ 
-  theme(axis.text.x = element_text( size = small.axis.ticks.size),
-        axis.text.y = element_text( size = small.axis.ticks.size),  
-        axis.title.x = element_text( size = small.axis.size),
-        axis.title.y = element_text( size = small.axis.size),
-        title = element_text( size = small.title.size),
+  theme(axis.text.x = element_text( size = extra.small.axis.ticks.size),
+        axis.text.y = element_text( size = extra.small.axis.ticks.size),  
+        axis.title.x = element_text( size = extra.small.axis.size),
+        axis.title.y = element_text( size = extra.small.axis.size),
+        title = element_text( size = extra.small.title.size),
         legend.key.size = unit(1, 'cm'), #change legend key size
         legend.key.height = unit(1, 'cm'), #change legend key height
         legend.key.width = unit(1, 'cm'), #change legend key width
-        legend.title = element_text(size=small.axis.size), #change legend title font size
-        legend.text = element_text(size=small.axis.ticks.size)) 
+        legend.title = element_text(size=extra.small.axis.size), #change legend title font size
+        legend.text = element_text(size=extra.small.axis.ticks.size)) 
 
 
 p.cdf.0.001 <- ggplot(data = cdf.mu0.001, aes(x = y, 
@@ -1194,16 +1200,16 @@ p.cdf.0.001 <- ggplot(data = cdf.mu0.001, aes(x = y,
                                               color = labels)) + 
   geom_line() + scale_colour_manual(values = c("blue", "black")) + 
   ggtitle(paste0("CDF Estimate \u00b5 = ", 0.001)) + xlab("Gamma")+ 
-  theme(axis.text.x = element_text( size = small.axis.ticks.size),
-        axis.text.y = element_text( size = small.axis.ticks.size),  
-        axis.title.x = element_text( size = small.axis.size),
-        axis.title.y = element_text( size = small.axis.size),
-        title = element_text( size = small.title.size),
+  theme(axis.text.x = element_text( size = extra.small.axis.ticks.size),
+        axis.text.y = element_text( size = extra.small.axis.ticks.size),  
+        axis.title.x = element_text( size = extra.small.axis.size),
+        axis.title.y = element_text( size = extra.small.axis.size),
+        title = element_text( size = extra.small.title.size),
         legend.key.size = unit(1, 'cm'), #change legend key size
         legend.key.height = unit(1, 'cm'), #change legend key height
         legend.key.width = unit(1, 'cm'), #change legend key width
-        legend.title = element_text(size=small.axis.size), #change legend title font size
-        legend.text = element_text(size=small.axis.ticks.size)) 
+        legend.title = element_text(size=extra.small.axis.size), #change legend title font size
+        legend.text = element_text(size=extra.small.axis.ticks.size)) 
 
 
 
@@ -1213,16 +1219,16 @@ p.cdf.0.01 <- ggplot(data = cdf.mu0.01, aes(x = y,
                                             color = labels)) + 
   geom_line() + scale_colour_manual(values = c("blue", "black")) + 
   ggtitle(paste0("CDF Estimate \u00b5 = ", 0.01)) + xlab("Gamma")+ 
-  theme(axis.text.x = element_text( size = small.axis.ticks.size),
-        axis.text.y = element_text( size = small.axis.ticks.size),  
-        axis.title.x = element_text( size = small.axis.size),
-        axis.title.y = element_text( size = small.axis.size),
-        title = element_text( size = small.title.size),
+  theme(axis.text.x = element_text( size = extra.small.axis.ticks.size),
+        axis.text.y = element_text( size = extra.small.axis.ticks.size),  
+        axis.title.x = element_text( size = extra.small.axis.size),
+        axis.title.y = element_text( size = extra.small.axis.size),
+        title = element_text( size = extra.small.title.size),
         legend.key.size = unit(1, 'cm'), #change legend key size
         legend.key.height = unit(1, 'cm'), #change legend key height
         legend.key.width = unit(1, 'cm'), #change legend key width
-        legend.title = element_text(size=small.axis.size), #change legend title font size
-        legend.text = element_text(size=small.axis.ticks.size)) 
+        legend.title = element_text(size=extra.small.axis.size), #change legend title font size
+        legend.text = element_text(size=extra.small.axis.ticks.size)) 
 
 
 p.cdf.0.1 <- ggplot(data = cdf.mu0.1, aes(x = y, 
@@ -1231,16 +1237,16 @@ p.cdf.0.1 <- ggplot(data = cdf.mu0.1, aes(x = y,
                                           color = labels)) + 
   geom_line() + scale_colour_manual(values = c("blue", "black")) + 
   ggtitle(paste0("CDF Estimate \u00b5 = ", 0.1)) + xlab("Gamma")+ 
-  theme(axis.text.x = element_text( size = small.axis.ticks.size),
-        axis.text.y = element_text( size = small.axis.ticks.size),  
-        axis.title.x = element_text( size = small.axis.size),
-        axis.title.y = element_text( size = small.axis.size),
-        title = element_text( size = small.title.size),
+  theme(axis.text.x = element_text( size = extra.small.axis.ticks.size),
+        axis.text.y = element_text( size = extra.small.axis.ticks.size),  
+        axis.title.x = element_text( size = extra.small.axis.size),
+        axis.title.y = element_text( size = extra.small.axis.size),
+        title = element_text( size = extra.small.title.size),
         legend.key.size = unit(1, 'cm'), #change legend key size
         legend.key.height = unit(1, 'cm'), #change legend key height
         legend.key.width = unit(1, 'cm'), #change legend key width
-        legend.title = element_text(size=small.axis.size), #change legend title font size
-        legend.text = element_text(size=small.axis.ticks.size)) 
+        legend.title = element_text(size=extra.small.axis.size), #change legend title font size
+        legend.text = element_text(size=extra.small.axis.ticks.size)) 
 
 
 p.cdf.0.4 <- ggplot(data = cdf.mu0.4, aes(x = y, 
@@ -1249,16 +1255,16 @@ p.cdf.0.4 <- ggplot(data = cdf.mu0.4, aes(x = y,
                                           color = labels)) + 
   geom_line() + scale_colour_manual(values = c("blue", "black")) + 
   ggtitle(paste0("CDF Estimate \u00b5 = ", 0.4)) + xlab("Gamma")+ 
-  theme(axis.text.x = element_text( size = small.axis.ticks.size),
-        axis.text.y = element_text( size = small.axis.ticks.size),  
-        axis.title.x = element_text( size = small.axis.size),
-        axis.title.y = element_text( size = small.axis.size),
-        title = element_text( size = small.title.size),
+  theme(axis.text.x = element_text( size = extra.small.axis.ticks.size),
+        axis.text.y = element_text( size = extra.small.axis.ticks.size),  
+        axis.title.x = element_text( size = extra.small.axis.size),
+        axis.title.y = element_text( size = extra.small.axis.size),
+        title = element_text( size = extra.small.title.size),
         legend.key.size = unit(1, 'cm'), #change legend key size
         legend.key.height = unit(1, 'cm'), #change legend key height
         legend.key.width = unit(1, 'cm'), #change legend key width
-        legend.title = element_text(size=small.axis.size), #change legend title font size
-        legend.text = element_text(size=small.axis.ticks.size))  
+        legend.title = element_text(size=extra.small.axis.size), #change legend title font size
+        legend.text = element_text(size=extra.small.axis.ticks.size))  
 
 
 

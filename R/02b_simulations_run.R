@@ -128,35 +128,36 @@ timeout = 5000
 
 
 
-# conversion.ce.simulation.results.array <- array(NA, dim = c(n.sims.conversion, length(h.set), length(ker.set), length(mu.set.conversion)))
-# conversion.ce.simulation.ml.results.array <- array(NA, dim = c(n.sims.conversion, length(h.set), length(ker.set)))
-# 
-# 
-# conversion.ce.simulation.results <- simulate_experiment(RUN_PARALLEL, 
-#                                                         simulation_conversion_cross_entropy, 
-#                                                         n.sims.conversion)
-# saveRDS(conversion.ce.simulation.results, "Data/results/conversion_ce_simulations_list1.rds")
-# 
-# 
-# for(i in 1:n.sims.conversion){
-#   for(q in 1:nrow(hyper.param.conversion.idx)){
-#     j = hyper.param.conversion.idx[q,1]
-#     k = hyper.param.conversion.idx[q,2]
-#     l = hyper.param.conversion.idx[q,3]
-#     conversion.ce.simulation.results.array[i,j,k,l] <- conversion.ce.simulation.results[[i]]$smoothed[q]
-#   }
-#   for(q in 1:nrow(hyper.param.conversion.ml.idx)){
-#     j = hyper.param.conversion.ml.idx[q,1]
-#     k = hyper.param.conversion.ml.idx[q,2]
-#     conversion.ce.simulation.ml.results.array[i,j,k] <- conversion.ce.simulation.results[[i]]$npmle[q]
-#   }
-# }
-# 
-# saveRDS(conversion.ce.simulation.results.array,paste0("Data/results/conversion_ce_simulations.rds"))
-# saveRDS(conversion.ce.simulation.ml.results.array,paste0("Data/results/conversion_ce_ml_simulations.rds"))
-# 
-# print("conversion cross entropy simulations complete")
-# 
+conversion.ce.simulation.results.array <- array(NA, dim = c(n.sims.conversion, length(h.set.conversion), length(ker.set), length(mu.set.conversion)))
+conversion.ce.simulation.ml.results.array <- array(NA, dim = c(n.sims.conversion, length(h.set.conversion), length(ker.set)))
+
+
+conversion.ce.simulation.results <- simulate_experiment(RUN_PARALLEL,
+                                                        simulation_conversion_cross_entropy,
+                                                        n.sims.conversion)
+saveRDS(conversion.ce.simulation.results, "Data/results/conversion_ce_simulations_list1.rds")
+
+
+
+for(i in 1:n.sims.conversion){
+  for(q in 1:nrow(hyper.param.conversion.idx)){
+    j = hyper.param.conversion.idx[q,1]
+    k = hyper.param.conversion.idx[q,2]
+    l = hyper.param.conversion.idx[q,3]
+    conversion.ce.simulation.results.array[i,j,k,l] <- conversion.ce.simulation.results[[i]]$smoothed[q]
+  }
+  for(q in 1:nrow(hyper.param.conversion.ml.idx)){
+    j = hyper.param.conversion.ml.idx[q,1]
+    k = hyper.param.conversion.ml.idx[q,2]
+    conversion.ce.simulation.ml.results.array[i,j,k] <- conversion.ce.simulation.results[[i]]$npmle[q]
+  }
+}
+
+saveRDS(conversion.ce.simulation.results.array,paste0("Data/results/conversion_ce_simulations.rds"))
+saveRDS(conversion.ce.simulation.ml.results.array,paste0("Data/results/conversion_ce_ml_simulations.rds"))
+
+print("conversion cross entropy simulations complete")
+
 
 
 

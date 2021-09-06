@@ -764,21 +764,19 @@ second_score_conditional <- function(y.obs, latent.mixture, cond){
 # Output: latent: weights in each bin in the latent distribution
 #         observed: list of probabilities assigned to each test score value 
 
+
 compute_two_obs_loglikelihood <- function(y.paired, A.two.sample.tensor, latent.mixture.list){
   M <- nrow(y.paired)
   log.likelihood <- 0
   for(m in 1:M){
-    like.tmp <- t(A.two.sample.tensor[y.paired[m,1] +1,y.paired[m,2] + 1,]) %*% latent.mixture.list[[m]]
-    log.likelihood <- log.likelihood + log(like.tmp)
+    pair.prob <- t(A.two.sample.tensor[y.paired[m,1] +1,y.paired[m,2] + 1,]) %*% latent.mixture.list[[m]]
+    log.likelihood <- log.likelihood + as.numeric(log(pair.prob))
   }
   return(log.likelihood)
 }
 
 
-
-
-
-# TODO: doc
+# TODO: document this 
 compute_joint_dist_beta <- function(beta1.model.y, beta2.model.y,
                                     beta1.model.z, beta2.model.z,
                                     cond.y, cond.z, grid.size = 10000){
@@ -894,6 +892,7 @@ intrinsic_variability <- function(pair.obs, latent.mix.list, n.samp, cond){
 # Output: probability : weights in each bin in the latent distribution
 #         observed: list of probabilities assigned to each test score value 
 
+
 compute_conversion_prob <- function(y, z, latent.mixture.y, latent.mixture.z, 
                                     cond.y, cond.z, grid.size = 10000){
   
@@ -911,17 +910,9 @@ compute_conversion_prob <- function(y, z, latent.mixture.y, latent.mixture.z,
   joint.dist <- lapply(latent.grid, function(x){
     latent.y <- qf_L(x, latent.quantiles.y, tau.y)
     latent.z <- qf_L(x, latent.quantiles.z, tau.z)
-    iy = 0:Ny
-    iz = 0:Nz
-    assumption.weights.y <- cond.y(latent.y)
-    assumption.weights.z <- cond.z(latent.z)
-    
-    prob.y <- assumption.weights.y/sum(assumption.weights.y)
-    prob.z <- assumption.weights.z/sum(assumption.weights.z)
-    
-    p.yz <- prob.y %*% t(prob.z)
-    out <- p.yz
-    
+    prob.y <- cond.y(latent.y)
+    prob.z <- cond.z(latent.z)
+    out <- prob.y %*% t(prob.z)
   })
   
   p.yz <- matrix(data = 0, nrow = Ny + 1, ncol = Nz + 1)
@@ -930,7 +921,7 @@ compute_conversion_prob <- function(y, z, latent.mixture.y, latent.mixture.z,
   }
   p.yz <- p.yz/grid.size
   
-  pz.given.y <- p.yz[y + 1,]/sum(p.yz[y + 1,])
+  pz.given.y <- exp(log(p.yz[y + 1,] ) - log(sum(p.yz[y + 1,])))
   
   cond.prob <- pz.given.y[z + 1]
   return(cond.prob)
@@ -940,7 +931,7 @@ compute_conversion_prob <- function(y, z, latent.mixture.y, latent.mixture.z,
 
 
 # TODO: name and document 
-
+# replace _metric with _ce 
 convert_score_metric <- function(test.pairs, latent.mix.list.y, latent.mix.list.z, 
                                  cond.y, cond.z, joint.prob, grid.size = 1000){
   
@@ -956,7 +947,7 @@ convert_score_metric <- function(test.pairs, latent.mix.list.y, latent.mix.list.
   z.true <- test.pairs[,2]
   z.sim <- c()
   
-  
+  # TODO: problem indices
   idx <- 1:nrow(test.pairs)
   res <- sapply(idx, function(x){
     latent.mix.y <- latent.mix.list.y[[x]]
@@ -964,7 +955,8 @@ convert_score_metric <- function(test.pairs, latent.mix.list.y, latent.mix.list.
     
     
     
-    conv.prob <- compute_conversion_prob(test.pairs[x,1], test.pairs[x,2], 
+    conv.prob <- compute_conversion_prob(y = test.pairs[x,1], 
+                                         z = test.pairs[x,2], 
                                          latent.mixture.y = latent.mix.y, 
                                          latent.mixture.z = latent.mix.z, 
                                          cond.y = cond.y, 
@@ -986,7 +978,120 @@ convert_score_metric <- function(test.pairs, latent.mix.list.y, latent.mix.list.
 
 
 
+
 ##   Parametric model functions  ---------------------------------------------
+
+# TODO: Document and delete the rest
+logitnorm_model_fit <- function(outcome, X, cond, numeric.points = 1000){
+  N = length(length(cond(0.5))) - 1
+  renorm.r.function.denom <- rep(0,N + 1)
+  numeric.grid <- seq(0,1,length.out = numeric.points)
+  for(x in numeric.grid){
+    renorm.r.function.denom <- renorm.r.function.denom + cond(x)
+  }
+  mean.seq <- rep(0, N + 1)
+  mom2.seq <- rep(0, N + 1) # 2nd moment sequence
+  trim.grid <- numeric.grid[2:(length(numeric.grid) - 1)] # removes problematic 0 and 1 
+  for(x in trim.grid){
+    mean.seq <- mean.seq + cond(x)*logit(x)/renorm.r.function.denom
+  }
+  for(x in trim.grid){
+    mom2.seq <- mom2.seq + cond(x)*logit(x)^2/renorm.r.function.denom
+  }
+  
+  y <- mean.seq[outcome + 1]
+  
+  beta.coef <- solve(t(as.matrix(X)) %*% as.matrix(X)) %*% (t(as.matrix(X)) %*% y)
+  
+  n <- length(y)
+  mus <-  as.matrix(X) %*% beta.coef
+  sig2 <- mean(mom2.seq[outcome + 1] -2*mus*y +mus^2)
+  sigma <- sqrt(sig2)
+  
+  out.params <- list("beta" = beta.coef, "sigma" = sigma)
+  return(out.params)
+}
+
+compute_conversion_parametric <- function(y, z, X.row, params.y, params.z, cond.y, cond.z, grid.size = 1000){
+  Ny <- length(cond.y(0.5)) - 1
+  Nz <- length(cond.z(0.5)) - 1
+  
+  mu.y <- as.numeric(X.row) %*% params.y$beta
+  mu.z <- as.numeric(X.row) %*% params.z$beta
+  sig.y <- params.y$sigma
+  sig.z <- params.z$sigma
+  
+  latent.grid <- seq(0,1, length.out = grid.size)
+  #trim.grid <- latent.grid[2:(length(latent.grid) - 1)] # removes the troublesome end points 
+  
+  # here we compute the model implied joint probability using a grid 
+  # of points and the inverse quantile function of the normal. 
+  joint.dist <- lapply(latent.grid, function(x){
+    latent.y <- logistic(qnorm(x, mean = mu.y, sd = sig.y))
+    latent.z <- logistic(qnorm(x, mean = mu.z, sd = sig.z))
+    
+    assumption.weights.y <- cond.y(latent.y)
+    assumption.weights.z <- cond.z(latent.z)
+    
+    prob.y <- assumption.weights.y/sum(assumption.weights.y)
+    prob.z <- assumption.weights.z/sum(assumption.weights.z)
+    out <- prob.y %*% t(prob.z)
+  })
+  
+  p.yz <- matrix(data = 0, nrow = Ny + 1, ncol = Nz + 1)
+  for(i in 1:length(joint.dist)){
+    p.yz <- p.yz + joint.dist[[i]]
+  }
+  p.yz <- p.yz/grid.size
+  
+  pz.given.y <- p.yz[y + 1,]/sum(p.yz[y + 1,])
+  
+  cond.prob <- pz.given.y[z + 1]
+  return(cond.prob)
+}
+
+
+
+compute_conversion_parametric_ce <- function(test.pairs, X, params.y, params.z, 
+                                             cond.y, cond.z, grid.size = 1000){
+  
+  Ny <- length(cond.y(0.5)) - 1
+  Nz <- length(cond.z(0.5)) - 1
+  
+  # weighting for whether we have access to the joint probabilities 
+  
+  
+  z.true <- test.pairs[,2]
+  z.sim <- c()
+  
+  
+  idx <- 1:nrow(test.pairs)
+  res <- sapply(idx, function(x){
+    conv.prob <- compute_conversion_parametric(test.pairs[x,1], test.pairs[x,2],  
+                                               X.row = X[x,], 
+                                               params.y = params.y, params.z = params.z, 
+                                               cond.y = cond.y, 
+                                               cond.z = cond.z, 
+                                               grid.size = grid.size)
+    
+    
+    
+    result.part <- -log(conv.prob)
+    
+    
+    return(result.part)
+  })
+  
+  out <- sum(res)
+  
+  return(out)
+}
+
+
+
+
+
+
 
 # TODO: rename and clarify what this is for (parametric)
 renormalized_r_function <- function(N, ker, h, is.binomial = F, grid.size = 100000){
@@ -1063,6 +1168,7 @@ conv_fx <- setRefClass("Parametric Conversion Function",
 )
 
 # TODO: rename, make sure it is obvious that this is an estimator of the conditional z|y 
+# TODO: Parametric Feels a bit like filler
 conversion.parametric <- function(y, z, x, params.y, params.z, 
                                   Ny, Nz, ker.y, ker.z, hy, hz, 
                                   binomial.y = F, binomial.z = F,  R_bins = 1000){
@@ -1348,6 +1454,32 @@ categorize <- function(data){
   return(tmp)
 }
 
+
+### TODO: Document 
+
+
+naive_conversion_prob <- function(y,muy,sdy,muz,sdz, Nz, n.samp = 100000){
+  z.pred <- muz + (sdz/sdy)*(y - muy)
+  eps <- rnorm(n.samp, mean = 0, sd = sdz)
+  
+  z.samp <- z.pred + eps
+  
+  z.scale <- 0:Nz
+  
+  closest.idx <- sapply(z.samp, function(z){
+    dists <- abs(z.scale - z)
+    out <- which.min(dists)
+    return(out)
+  })
+  
+  rounded.samp <- z.scale[closest.idx]
+  out <- rep(0,Nz + 1)
+  for(k in 0:Nz){
+    out[k + 1] <- mean(rounded.samp == k)
+  }
+  
+  return(out)
+}
 
 
 

@@ -2,6 +2,8 @@
 # Functions for Data Harmonization
 setwd("/Users/Owner/Documents/PhD/Latent Variable Modelling with Application to Data Harmonization")
 source("DataHarmonizationFunctions.R")
+library(dplyr)
+library(gridExtra)
 
 categorize <- function(data){
   tmp <- data %>% mutate(group = ifelse(((sex == 1) & (educ <= 16)), 1, 
@@ -23,8 +25,7 @@ axis.size = 30 #18
 
 
 
-library(dplyr)
-library(gridExtra)
+
 
 full.dat <- read.csv("data/investigator_nacc47.csv")
 all_tests <- full.dat
