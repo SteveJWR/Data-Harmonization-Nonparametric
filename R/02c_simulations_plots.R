@@ -424,7 +424,7 @@ gauss.plot <- ggplot(data = gauss.frame, aes(x = h, y = cross.entropy, color = m
   geom_errorbar(aes(ymin=cross.entropy-2*cross.entropy.sd, 
                     ymax=cross.entropy+2*cross.entropy.sd),
                 width=.2, position=position_dodge(0.0)) +
-  ggtitle("Gaussian Kernel")  + coord_cartesian(xlim = c(0,4.1), ylim = c(2.2, 3.3)) + 
+  ggtitle("Gaussian Kernel")  + coord_cartesian(xlim = c(0,4.1), ylim = c(2.35, 3.0)) + 
   ylab("Population Cross Entropy") + scale_color_manual(values= as.vector(P7)) + 
   theme(axis.text.x = element_text( size = axis.ticks.size),
         axis.text.y = element_text( size = axis.ticks.size),  
@@ -442,7 +442,7 @@ exp.plot <- ggplot(data = exp.frame, aes(x = h, y = cross.entropy, color = mu, g
   geom_errorbar(aes(ymin=cross.entropy-2*cross.entropy.sd, 
                     ymax=cross.entropy+2*cross.entropy.sd),
                 width=.2, position=position_dodge(0.0)) +
-  ggtitle("Laplace Kernel") + coord_cartesian(xlim = c(0,4.1), ylim = c(2.2, 3.3)) + 
+  ggtitle("Laplace Kernel") + coord_cartesian(xlim = c(0,4.1), ylim = c(2.35, 3.0)) + 
   ylab("Population Cross Entropy")  + 
   annotate("point", x = exp.frame$h[30], y = exp.frame$cross.entropy[30], colour = "blue", shape = "x", size = 8) + 
   scale_color_manual(values= as.vector(P7)) + 
