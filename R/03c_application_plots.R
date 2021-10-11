@@ -372,6 +372,7 @@ gauss.plot <- ggplot(data = gauss.frame, aes(x = h, y = cross.entropy, color = m
   ylab("Crosswalk Sample Cross Entropy") + 
   coord_cartesian(xlim = c(0,4), ylim = c(950, 1100)) + 
   scale_color_manual(values= as.vector(P12)) + 
+  annotate("point", x = gauss.frame$h[82], y = gauss.frame$cross.entropy[82], colour = "red", shape = "x", size = 6) + 
   theme(axis.text.x = element_text( size = axis.ticks.size),
         axis.text.y = element_text( size = axis.ticks.size),  
         axis.title.x = element_text( size = axis.size),
@@ -387,7 +388,7 @@ exp.plot <- ggplot(data = exp.frame, aes(x = h, y = cross.entropy, color = mu, g
   geom_line()  + ggtitle("Laplace Kernel")  + ylab("Crosswalk Sample Cross Entropy")  + 
   coord_cartesian(xlim = c(0,4), ylim = c(950, 1100))  + 
   scale_color_manual(values= as.vector(P12)) + 
-  annotate("point", x = exp.frame$h[29], y = exp.frame$cross.entropy[29], colour = "blue", shape = "x", size = 4) + 
+  annotate("point", x = exp.frame$h[80], y = exp.frame$cross.entropy[80], colour = "blue", shape = "x", size = 6) + 
   theme(axis.text.x = element_text( size = axis.ticks.size),
         axis.text.y = element_text( size = axis.ticks.size),  
         axis.title.x = element_text( size = axis.size),
@@ -416,7 +417,7 @@ triangle.plot <- ggplot(data = triangle.frame, aes(x = h, y = cross.entropy, col
         legend.text = element_text(size=axis.ticks.size))
 
 epanechnikov.plot <- ggplot(data = epanechnikov.frame, aes(x = h, y = cross.entropy, color = mu, group = mu)) + 
-  geom_line()  + ggtitle("Epan. Kernel")  + 
+  geom_line()  + ggtitle("Epanechnikov Kernel")  + 
   ylab("Crosswalk Sample Cross Entropy")  + 
   coord_cartesian(xlim = c(0,12), ylim = c(950, 1100)) + 
   scale_color_manual(values= as.vector(P12)) + 
@@ -463,7 +464,7 @@ gauss.plot.small
 
 
 exp.plot.small <- ggplot(data = exp.frame.small, aes(x = h, y = cross.entropy, color = mu, group = mu)) + 
-  geom_line()  + ggtitle("Exponential Kernel") + 
+  geom_line()  + ggtitle("Laplace Kernel") + 
   ylab("Crosswalk Sample Cross Entropy") + 
   coord_cartesian(xlim = c(0,4), ylim = c(950, 1100)) + 
   scale_color_manual(values= as.vector(P9)) + 
@@ -504,7 +505,7 @@ dev.off()
 
 
 png(filename = "Plots/conversion_NACC_MMSE_MOCA_large.png",
-    width = png.width, height = png.height, res = png.res)
+    width = 2*png.width, height = 2*png.height, res = png.res)
 
 
 ggarrange(gauss.plot, exp.plot,
