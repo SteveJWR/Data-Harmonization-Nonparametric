@@ -4,15 +4,15 @@ In order to replicate the figures in the paper, please run the scripts in the R 
 
 File Guide: 
 
-00_clean_data.R             : data cleaning for the 
-01_functions.R              : functions for the rest of the scripts 
-02a_simulations_setup.R     : functions to set up simulation parameters
-02b_simulations_run.R       : running the simulations and saving simulation results (takes a long time to run)
-02c_simulations_plots.R     : plotting the results from 02b
-03a_application_setup.R     : functions to set up applications
-03b_application_run.R       : running applications for many parameter settings and saving results  (takes a long time to run)
-03c_application_plots.R     : plotting the results from 03b
-04_test_script.R            : 
+00_clean_data.R                 : data cleaning for the 
+01_functions.R                  : functions for the rest of the scripts 
+02a_simulations_setup.R         : functions to set up simulation parameters
+02b_simulations_run.R           : running the simulations and saving simulation results (takes a long time to run)
+02c_simulations_plots.R         : plotting the results from 02b
+03a_application_setup.R         : functions to set up applications
+03b_application_run.R           : running applications for many parameter settings and saving results  (takes a long time to run)
+03c_application_plots.R         : plotting the results from 03b
+Example Data Harmonization.Rmd  : Simplified example analysis coming soon. 
 
 
 In order to replicate the real data analysis the NACC Uniform Dataset may be requested from 
