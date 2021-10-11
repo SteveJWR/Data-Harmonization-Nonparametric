@@ -1,4 +1,4 @@
-This repository contains the code for the paper "Data Harmonization Via Regularized Nonparametric Mixing Distribution Estimation".   This paper develops and implements a method for converting discrete random variables based on a nonparametric mixing distribution estimator. 
+This repository contains the code for the paper "Data Harmonization Via Regularized Nonparametric Mixing Distribution Estimation".   This paper develops and implements a method for converting discrete random variables based on a nonparametric mixing distribution estimator. This work is a collaboration with Yen-Chi Chen and Gary Chan at the University of Washington. 
 
 
 
