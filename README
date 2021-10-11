@@ -1,4 +1,6 @@
-This repository contains the code for the paper "Data Harmonization Via Regularized Nonparametric Mixing Distribution Estimation".   
+This repository contains the code for the paper "Data Harmonization Via Regularized Nonparametric Mixing Distribution Estimation".   This paper develops and implements a method for converting discrete random variables based on a nonparametric mixing distribution estimator. 
+
+
 
 In order to replicate the figures in the paper, please run the scripts in the R folder. 
 
