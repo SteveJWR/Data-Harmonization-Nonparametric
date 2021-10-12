@@ -452,7 +452,16 @@ compute_loglikelihood_from_latent <- function(p.hat, p.ma, tau,
 
 
 
-# TODO: create a new object which includes the quantiles and the corresponding levels, this will also be the output of this function
+# Function: applies the nonparametric EM algorithm to compute the possibly regularized npmle
+# Input: p.hat: empirical distribution of the observed scores
+#        cond: function defining the conditional distribution of Y|gamma; function [0,1] -> {0, ..., N}
+#        R_bins:  number of bins (quantiles) to sample from
+#        mu:  regularization parameter
+#        n.mc.samp: number of monte-carlo samples per iteration of the nonparametric em algorithm 
+#        verbose: indicator for whether rolling number of iterations will be displayed 
+# Output: sequence of quantiles for a uniform partition of the latent distribution
+
+
 fit_nonpar_em <- function(p.hat, cond,  R_bins = 300, mu = 0, n.mc.samp = 1000, verbose = T){
   N <- length(cond(0.5)) - 1
   # looking at a uniform spacing of the inverse quantiles. 
@@ -755,14 +764,11 @@ second_score_conditional <- function(y.obs, latent.mixture, cond){
 }
 
 
-
-# TODO: Edit this lil guy here 
-# Function: Estimate the latent distribution using a convex solver 
-# Input: p.hat, a discrete empirical distribution function;  numeric  
-#        A.matrix, matrix which maps a vector of uniform bins to the observed data; matrix 
-#        mu,  regularization parameter; >= 0
-# Output: latent: weights in each bin in the latent distribution
-#         observed: list of probabilities assigned to each test score value 
+# Function: Compute the likelihood of a mixing distributions based on two sequential observations for a constant gamma value
+# Input: y.paired, a data.frame of the pairs of observed scores 
+#        A.two.sample.tensor, a tensor which is used to map the latent gamma to the joint bivariate distribution of scores 
+#        latent.mixture.list,  a list of latent mixtures to use for each pair of observations. 
+# Output: log-likelihood value 
 
 
 compute_two_obs_loglikelihood <- function(y.paired, A.two.sample.tensor, latent.mixture.list){
@@ -776,7 +782,11 @@ compute_two_obs_loglikelihood <- function(y.paired, A.two.sample.tensor, latent.
 }
 
 
-# TODO: document this 
+# Function: Compute the joint distribution of the observed scores for a harmonizable set of beta distribuions 
+# Input: beta*.model.w, beta * (1 or 2) parameters for the w (y or z branch ) of the distribution
+#        cond.w, w (y or z branch ) function defining the conditional distribution of Y|gamma; function [0,1] -> P{0, ..., N}
+#        grid.size,  a grid size for the numerical approximation of the distribution 
+# Output: joint distribution matrix
 compute_joint_dist_beta <- function(beta1.model.y, beta2.model.y,
                                     beta1.model.z, beta2.model.z,
                                     cond.y, cond.z, grid.size = 10000){
@@ -845,10 +855,8 @@ intrinsic_variability_sample <- function(pair.obs, n.samp, latent.mixture, cond)
 # Input: pair.obs, an observed data set of pairs of distributions for which
 #                  the latent variable is constant;  must be an vector of integers  
 #        latent.mix.list, list of latent mixtures ; input is a list of weights assigned to a uniformly binned latent  
-#        model.observed.list,  list of corresponding distributions on the observed data
 # Output: latent: weights in each bin in the latent distribution
 #         observed: list of probabilities assigned to each test score value 
-# TODO: Delete model.observed.list
 
 intrinsic_variability <- function(pair.obs, latent.mix.list, n.samp, cond){
   # samples from the true q0 distribution 
@@ -930,9 +938,14 @@ compute_conversion_prob <- function(y, z, latent.mixture.y, latent.mixture.z,
 
 
 
-# TODO: name and document 
-# replace _metric with _ce 
-convert_score_metric <- function(test.pairs, latent.mix.list.y, latent.mix.list.z, 
+# Function: compute the cross entropy of conversion for a non-parametric latent model
+# Input: test.pairs, pairs of observations used to compute the cross-entropy
+#        latent.mix.list.w, w (y or z branch ) list of latent distributions for each pair of the corresponding branch
+#        cond.w, w (y or z branch ) function defining the conditional distribution of Y|gamma; function [0,1] -> P{0, ..., N}
+#        joint.prob,  joint probability to weight observations to compute the population quantity in simulations
+# Output: cross entropy value
+
+convert_score_ce <- function(test.pairs, latent.mix.list.y, latent.mix.list.z, 
                                  cond.y, cond.z, joint.prob, grid.size = 1000){
   
   Ny <- length(cond.y(0.5)) - 1
@@ -947,7 +960,6 @@ convert_score_metric <- function(test.pairs, latent.mix.list.y, latent.mix.list.
   z.true <- test.pairs[,2]
   z.sim <- c()
   
-  # TODO: problem indices
   idx <- 1:nrow(test.pairs)
   res <- sapply(idx, function(x){
     latent.mix.y <- latent.mix.list.y[[x]]
@@ -981,7 +993,14 @@ convert_score_metric <- function(test.pairs, latent.mix.list.y, latent.mix.list.
 
 ##   Parametric model functions  ---------------------------------------------
 
-# TODO: Document and delete the rest
+
+# Function: compute the cross entropy of conversion for 
+# Input: outcome, pairs of observations used to compute the cross-entropy
+#        X, design matrix
+#        cond, function defining the conditional distribution of Y|gamma; function [0,1] -> P{0, ..., N}
+#        numeric.points, numeric computation 
+# Output: beta and sigma variational approximation estimates
+
 logitnorm_model_fit <- function(outcome, X, cond, numeric.points = 1000){
   N = length(length(cond(0.5))) - 1
   renorm.r.function.denom <- rep(0,N + 1)
@@ -1012,6 +1031,16 @@ logitnorm_model_fit <- function(outcome, X, cond, numeric.points = 1000){
   return(out.params)
 }
 
+
+# Function: compute the conditional probability p(z|y,x) 
+# Input: y, observed score
+#        z, target conversion 
+#        X.row, design matrix row
+#        params.w, parameters for each of the latent mixtures
+#        cond.w, functions defining the conditional distribution of W|gamma; function [0,1] -> P{0, ..., N}
+#        grid.size, numeric computation grid approximation size
+# Output: p(z|y,x) 
+
 compute_conversion_parametric <- function(y, z, X.row, params.y, params.z, cond.y, cond.z, grid.size = 1000){
   Ny <- length(cond.y(0.5)) - 1
   Nz <- length(cond.z(0.5)) - 1
@@ -1022,7 +1051,6 @@ compute_conversion_parametric <- function(y, z, X.row, params.y, params.z, cond.
   sig.z <- params.z$sigma
   
   latent.grid <- seq(0,1, length.out = grid.size)
-  #trim.grid <- latent.grid[2:(length(latent.grid) - 1)] # removes the troublesome end points 
   
   # here we compute the model implied joint probability using a grid 
   # of points and the inverse quantile function of the normal. 
@@ -1051,7 +1079,13 @@ compute_conversion_parametric <- function(y, z, X.row, params.y, params.z, cond.
 }
 
 
-
+# Function: compute the cross entropy in the parametric model 
+# Input: test.pairs, pairs of observed outcomes 
+#        X, design matrix
+#        params.w, parameters for each of the latent mixtures
+#        cond.w, functions defining the conditional distribution of W|gamma; function [0,1] -> P{0, ..., N}
+#        grid.size, numeric computation grid approximation size
+# Output: p(z|y,x) 
 compute_conversion_parametric_ce <- function(test.pairs, X, params.y, params.z, 
                                              cond.y, cond.z, grid.size = 1000){
   
@@ -1093,224 +1127,6 @@ compute_conversion_parametric_ce <- function(test.pairs, X, params.y, params.z,
 
 
 
-# TODO: rename and clarify what this is for (parametric)
-renormalized_r_function <- function(N, ker, h, is.binomial = F, grid.size = 100000){
-  norm_consts <- rep(0,N+1)
-  eps = 10^(-6)
-  y.vals <- 0:N
-  gam.grid <- seq(0,1, length.out = grid.size)
-  trim.grid <- seq(eps,1 - eps, length.out = grid.size)
-  mean.seq <- rep(NA, N + 1)
-  mom2.seq <- rep(NA, N + 1)
-  if(is.binomial){
-    if(missing(ker) | missing(h)){
-      ker <- NA
-      h <- NA
-    }
-    for(k in y.vals){
-      norm_consts[k + 1] = mean(dbinom(k, size = N, prob = gam.grid))
-      mean.seq[k + 1] = mean(dbinom(k, size = N, prob = trim.grid)*logit(trim.grid))/norm_consts[k + 1]
-      mom2.seq[k + 1] = mean(dbinom(k, size = N, prob = trim.grid)*logit(trim.grid)^2)/norm_consts[k + 1]
-    }
-    
-  }
-  else{
-    for(k in y.vals){
-      norm_consts[k + 1] = mean(ker((k - gam.grid*N)/h))
-      mean.seq[k + 1] = mean(ker((k - gam.grid*N)/h)*logit(trim.grid))/norm_consts[k + 1]
-      mom2.seq[k + 1] = mean(ker((k - gam.grid*N)/h)*logit(trim.grid)^2)/norm_consts[k + 1]
-    }
-  }
-  out <- list("latent.logit.mean" = mean.seq, "latent.logit.mom2" = mom2.seq)
-  return(out)
-}
-
-
-# TODO: rename, make sure its obvious about the latent version 
-fit_logitnorm_model <- function(k, X, latent.variational.moments){
-  # Ensure that we have a matrix/ dataframe and a density object. 
-  # should also ensure that it had been trained
-  
-  
-  y <- latent.variational.moments$latent.logit.mean[k + 1]
-  
-  beta_coef <-solve(t(as.matrix(X)) %*% as.matrix(X)) %*% (t(as.matrix(X)) %*% y)
-  # Could probably paralellize the variance computation 
-  n <- length(y)
-  mus <-  as.matrix(X) %*% beta_coef
-  sig2 <- mean(latent.variational.moments$latent.logit.mom2[k + 1] -2*mus*latent.variational.moments$latent.logit.mean[k + 1] +mus^2)
-  sigma <- sqrt(sig2)
-  
-  data_out <- list(beta = beta_coef, sigma = sigma)
-  return(data_out)
-  
-}
-
-
-
-### TODO: Change this and stick to functional programming 
-
-# TODO: rename, to psi function, parametric conversion 
-conv_fx <- setRefClass("Parametric Conversion Function",
-                       fields = list(y_params = "list", z_params = "list"),
-                       methods = list(
-                         convert_yz = function(gam,x){
-                           zeta <- logistic(z_params$sigma/y_params$sigma *logit(gam) + 
-                                              sum((z_params$beta - (z_params$sigma/y_params$sigma)*y_params$beta)*x))
-                           return(zeta)
-                         },
-                         convert_zy = function(zeta,x) {
-                           gam <- logistic(y_params$sigma/z_params$sigma *logit(zeta) + 
-                                             sum((y_params$beta - (y_params$sigma/z_params$sigma)*z_params$beta)*x))
-                           return(gam)
-                         }
-                       )
-)
-
-# TODO: rename, make sure it is obvious that this is an estimator of the conditional z|y 
-# TODO: Parametric Feels a bit like filler
-conversion.parametric <- function(y, z, x, params.y, params.z, 
-                                  Ny, Nz, ker.y, ker.z, hy, hz, 
-                                  binomial.y = F, binomial.z = F,  R_bins = 1000){
-  
-  if((missing(ker.y) | missing(hy) ) & ! binomial.y){
-    stop("Missing Meaurement model on Y")
-  }
-  
-  if((missing(ker.z) | missing(hz) ) & ! binomial.z){
-    stop("Missing Meaurement model on Z")
-  }
-  
-  if((missing(ker.y) | missing(hy))){
-    ker.y <- NA
-    hy <- NA
-  }
-  
-  if((missing(ker.z) | missing(hz))){
-    ker.z <- NA
-    hz <- NA
-  }
-  
-  
-  
-  
-  ######################################################
-  ######################################################
-  
-  if(!binomial.y){
-    p.ay <- function(y,gam){
-      i <- 0:Ny
-      out <- ker.y((y - Ny*gam)/hy)/sum(ker.y((i - Ny*gam)/hy))
-      return(out)
-    }
-  }
-  
-  
-  if(!binomial.z){
-    p.az <- function(z,zeta){
-      j <- 0:Nz
-      out <- ker.z((z - Nz*zeta)/hz)/sum(ker.z((j - Nz*zeta)/hz))
-      return(out)
-    }
-  }
-  
-  if(binomial.y){
-    p.ay <- function(y,gam){
-      out <- dbinom(x = y, size = Ny, prob = gam)
-      return(out)
-    }
-  }
-  
-  
-  if(binomial.z){
-    p.az <- function(z,zeta){
-      out <- dbinom(x = z, size = Nz, prob = zeta)
-      return(out)
-    }
-  }
-  
-  
-  mu.y <- t(params.y$beta) %*% as.numeric(x) 
-  mu.z <- t(params.z$beta) %*% as.numeric(x) 
-  
-  sigma.y <- params.y$sigma
-  sigma.z <- params.z$sigma
-  
-  conversion <- conv_fx(y_params = params.y, z_params = params.z)
-  
-  ######
-  # plot(latent.grid, conversion$convert_yz(latent.grid, x))
-  #####
-  
-  eps = 10^(-8)
-  latent.grid <-seq(eps, 1 - eps, length.out = R_bins) 
-  joint.dist.grid  <- sapply(1:R_bins, function(gam.idx){
-    gam <- latent.grid[gam.idx]
-    weight <- 1/(gam*(1 - gam))*dnorm(logit(gam), mean = mu.y, sd = sigma.y)
-    zeta.point <- conversion$convert_yz(gam, x)
-    
-    out.y <- p.ay(y,gam)
-    out.z <- p.az(z,zeta.point)
-    out <- out.y*out.z*weight
-    return(out)
-  })
-  
-  # density function of a logit-normal 
-  p.m <- 1/(latent.grid*(1 - latent.grid))*dnorm(logit(latent.grid), mean = mu.y, sd = sigma.y)
-  denom <- mean(p.ay(y, latent.grid)*p.m)
-  cond.out <- mean(joint.dist.grid)/(denom)
-  return(cond.out)
-}
-
-
-# TODO: should not also need this
-par.cond.sample <- function(y,N,mu,sig, p.ay, n.samp){
-  n_parallel <- 100000
-  gam.out <- c()
-  while(length(gam.out) < n.samp ){
-    norm.samp <- rnorm(n_parallel, mean = mu, sd = sig)
-    logit.norm.samp <- logistic(norm.samp)
-    y.samp <- sapply(logit.norm.samp, function(z){
-      out <- sample(0:N, size = 1, prob = p.ay(0:N, z), replace = T)
-      return(out)
-    })
-    keep.idx <- y.samp == y
-    gam.out <- c(gam.out, logit.norm.samp[keep.idx])
-  }
-  return(gam.out)
-}
-
-
-# TODO: rename and change the . to _ 
-naive.conversion.prob <- function(y,muy,sdy,muz,sdz, Nz){
-  z.pred <- muz + (sdz/sdy)*(y - muy)
-  
-  
-  
-  z.scale <- 0:Nz
-  
-  out.prob <- sapply(z.scale, function(z){
-    z.max <- z + 1/2
-    z.min <- z - 1/2
-    if(z.max > Nz){
-      z.max = Inf
-    }
-    if(z.min < 0){
-      z.min = -Inf
-    }
-    
-    out <- pnorm(z.max, mean = z.pred, sd = sdz) - pnorm(z.min, mean = z.pred, sd = sdz)
-    return(out)
-  })
-  
-  return(out.prob)
-}
-
-
-
-
-
-
 
 ##   Functions for simulations ---------------------------------------------
 
@@ -1321,7 +1137,7 @@ naive.conversion.prob <- function(y,muy,sdy,muz,sdz, Nz){
 #        n.obs.per.ind, number of repeated observations per individual; integer 
 #        (beta1.y, beta2.y), parameters for the beta distribution in the model; > 0
 #        cond.y, function defining the conditional distribution of Y|gamma; function [0,1] -> {0, ..., N}
-#        pair.obs, logical whether sampling from 
+#        pair.obs, logical whether sampling a pair of outcomes
 # Output: data set of sampled according to the generated model 
 simulate_beta <- function(n.ind, n.obs.per.ind, beta1.y, beta2.y, cond.y, beta1.z, beta2.z, cond.z, pair.obs = T){
   
@@ -1373,8 +1189,9 @@ simulate_beta <- function(n.ind, n.obs.per.ind, beta1.y, beta2.y, cond.y, beta1.
 
 
 
-
-#TODO: Document 
+# Function: summarize an experiment of simulations. 
+# Input: results, a list of results from the simulations
+# Output: summarized results from the simulations
 summarize_simulations <- function(results){
   
   array.shape <- dim(results)
@@ -1455,9 +1272,16 @@ categorize <- function(data){
 }
 
 
-### TODO: Document 
-
-
+# Function: Naive, score conversion method
+# Input: y, observed score on the Y branch test 
+#        muy, mean of Y scores 
+#        sdy, standard deviation of Y scores
+#        muz, mean of Z scores 
+#        sdz, standard deviation of Z scores
+#        Nz, range of outcomes for the Z test score
+#        n.samp, number of samples for the conditional distribution approximation
+#        
+# Output: conditional probability p(z|y) for all values z in {0,1,2,...Nz}
 naive_conversion_prob <- function(y,muy,sdy,muz,sdz, Nz, n.samp = 100000){
   z.pred <- muz + (sdz/sdy)*(y - muy)
   eps <- rnorm(n.samp, mean = 0, sd = sdz)
@@ -1483,36 +1307,5 @@ naive_conversion_prob <- function(y,muy,sdy,muz,sdz, Nz, n.samp = 100000){
 
 
 
-##   TRASHBIN ---------------------------------------------
-# TO DO: delete after using simplified one 
-cond.dist.est <- function(x.design, train.data, outcome, N, age.window = 3){
-  out.p.hat <- matrix(data = NA, nrow = nrow(x.design), ncol = N + 1)
-  for(i in 1:nrow(x.design)){
-    x <- x.design[i,]
-    idx1 <- x$group == train.data$group 
-    idx2 <- abs(x$age - train.data$age) <= age.window
-    idx <- idx1 & idx2
-    sub.dat <- train.data[idx,]
-    obs.set <- 0:N
-    summary.dat <- sub.dat %>%
-      group_by_(outcome) %>%
-      summarise(Count = n()) 
-    summary.dat <- as.data.frame(summary.dat)
-    
-    n <- sum(summary.dat$Count)
-    
-    missing.obs <- obs.set[!obs.set %in% summary.dat[1:nrow(summary.dat),outcome]]
-    missing.block <- data.frame(y = missing.obs, Count = rep(0,length(missing.obs)))
-    colnames(missing.block)[1] <- outcome
-    summary.dat <- rbind(summary.dat, missing.block)
-    
-    summary.dat <- summary.dat %>% arrange_(outcome)
-    
-    p.hat <- summary.dat$Count/sum(summary.dat$Count)
-    out.p.hat[i,] <- p.hat
-  }
-  
-  return(out.p.hat)
-}
 
 

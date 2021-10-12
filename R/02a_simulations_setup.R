@@ -484,13 +484,13 @@ simulation_conversion_cross_entropy <- function(sim.number){
     }
     
     # conversion population cross entropy 
-    ce.pop <- convert_score_metric(test.pairs = test.grid, 
-                                   latent.mix.list.y = latent.mix.list.y, 
-                                   latent.mix.list.z = latent.mix.list.z, 
-                                   cond.y = cond.model1, 
-                                   cond.z = cond.tmp, 
-                                   joint.prob = p.yz,
-                                   grid.size = 1000) 
+    ce.pop <- convert_score_ce(test.pairs = test.grid, 
+                               latent.mix.list.y = latent.mix.list.y, 
+                               latent.mix.list.z = latent.mix.list.z, 
+                               cond.y = cond.model1, 
+                               cond.z = cond.tmp, 
+                               joint.prob = p.yz,
+                               grid.size = 1000) 
     
     return(ce.pop)
   })
@@ -522,13 +522,13 @@ simulation_conversion_cross_entropy <- function(sim.number){
     }
     
     # conversion population cross entropy 
-    ce.pop.ml <- convert_score_metric(test.pairs = test.grid, 
-                                      latent.mix.list.y = latent.mix.list.y.ml, 
-                                      latent.mix.list.z = latent.mix.list.z.ml, 
-                                      cond.y = cond.model1, 
-                                      cond.z = cond.tmp, 
-                                      joint.prob = p.yz,
-                                      grid.size = 1000) 
+    ce.pop.ml <- convert_score_ce(test.pairs = test.grid, 
+                                  latent.mix.list.y = latent.mix.list.y.ml, 
+                                  latent.mix.list.z = latent.mix.list.z.ml, 
+                                  cond.y = cond.model1, 
+                                  cond.z = cond.tmp, 
+                                  joint.prob = p.yz,
+                                  grid.size = 1000) 
     
     return(ce.pop.ml)
   })
